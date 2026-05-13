@@ -6,9 +6,13 @@ from .errors import ParseError
 
 
 def _attr(stanza: str, name: str) -> str:
-    """Extrae atributo de stanza."""
-    match = re.search(rf"{name}='([^']+)'", stanza)
-    return match.group(1) if match else ""
+    """Extrae atributo de stanza. Soporta comillas simples y dobles."""
+    for quote in ("'", '"'):
+        pattern = rf"{name}={quote}([^{quote}]+){quote}"
+        match = re.search(pattern, stanza)
+        if match:
+            return match.group(1)
+    return ""
 
 
 def parse_todus_message(stanza: str) -> dict:
@@ -42,41 +46,38 @@ def parse_todus_message(stanza: str) -> dict:
     if match:
         result["url"] = util.unescape_xml(match.group(1)).strip()
 
-    # Archivo adjunto (formato nuevo <file>)
-    # <file xmlns='file:n' i='file-id' mi='msg-id' n='nombre.docx' url='https://...' s='10210' h='hash'/>
-    file_match = re.search(
-        r"<file\s+xmlns='file:n'\s+"
-        r"i='([^']*)'\s+"
-        r"mi='([^']*)'\s+"
-        r"n='([^']*)'\s+"
-        r"url='([^']*)'\s+"
-        r"s='([^']*)'\s+"
-        r"h='([^']*)'",
-        stanza,
-    )
+    # Archivo adjunto (formato nuevo <file>) — robusto ante orden de atributos
+    file_match = re.search(r"<file\b[^>]*>", stanza)
     if file_match:
-        result["file_id"] = file_match.group(1)
-        result["message_file_id"] = file_match.group(2)
-        result["file_name"] = util.unescape_xml(file_match.group(3))
-        result["url"] = file_match.group(4)
+        file_tag = file_match.group(0)
+        result["file_id"] = _attr(file_tag, "i")
+        result["message_file_id"] = _attr(file_tag, "mi")
+        result["file_name"] = util.unescape_xml(_attr(file_tag, "n"))
+        result["url"] = _attr(file_tag, "url")
         try:
-            result["file_size"] = int(file_match.group(5))
+            result["file_size"] = int(_attr(file_tag, "s"))
         except ValueError:
             result["file_size"] = 0
-        result["file_hash"] = file_match.group(6)
+        result["file_hash"] = _attr(file_tag, "h")
 
     # Offline timestamp
     match = re.search(r"<todus_offline\s+ts='([^']+)'", stanza)
+    if not match:
+        match = re.search(r'<todus_offline\s+ts="([^"]+)"', stanza)
     if match:
         result["offline_ts"] = match.group(1)
 
     # Edited
     match = re.search(r"<edited\s+xmlns='edited:n'\s+i='([^']+)'", stanza)
+    if not match:
+        match = re.search(r'<edited\s+xmlns="edited:n"\s+i="([^"]+)"', stanza)
     if match:
         result["edited"] = match.group(1)
 
     # Deleted
     match = re.search(r"<deleted\s+xmlns='deleted:n'\s+i='([^']+)'", stanza)
+    if not match:
+        match = re.search(r'<deleted\s+xmlns="deleted:n"\s+i="([^"]+)"', stanza)
     if match:
         result["deleted"] = match.group(1)
 
@@ -126,18 +127,14 @@ def parse_iq(stanza: str) -> dict:
         if match:
             result["error"] = match.group(1)
 
-    # Upload URLs
-    if "put='" in stanza:
-        match = re.match(r".*put='(.*)' get='(.*)' stat.*", stanza)
-        if match:
-            result["upload_url"] = match.group(1).replace("amp;", "")
-            result["download_url"] = match.group(2)
+    # Upload URLs — robusto ante orden de atributos
+    if _attr(stanza, "put"):
+        result["upload_url"] = _attr(stanza, "put").replace("amp;", "")
+        result["download_url"] = _attr(stanza, "get").replace("amp;", "")
 
     # Download URL
-    if "du='" in stanza:
-        match = re.match(".*du='(.*)' stat.*", stanza)
-        if match:
-            result["real_url"] = match.group(1).replace("amp;", "")
+    if _attr(stanza, "du"):
+        result["real_url"] = _attr(stanza, "du").replace("amp;", "")
 
     return result
 
@@ -166,6 +163,7 @@ class IncrementalParser:
 
         self._buffer += chunk
         stanzas = []
+        seen_raw = set()
 
         patterns = [
             (r"<m\b.*?</m>", parse_todus_message),
@@ -176,13 +174,14 @@ class IncrementalParser:
         for pattern, parser_fn in patterns:
             for match in re.finditer(pattern, self._buffer, re.DOTALL):
                 stanza_str = match.group(0)
-                # Evitar duplicados
-                if stanza_str not in [s.get("raw", "") for s in stanzas]:
-                    try:
-                        parsed = parser_fn(stanza_str)
-                        stanzas.append(parsed)
-                    except Exception:
-                        pass
+                if stanza_str in seen_raw:
+                    continue
+                seen_raw.add(stanza_str)
+                try:
+                    parsed = parser_fn(stanza_str)
+                    stanzas.append(parsed)
+                except Exception:
+                    pass
 
         # Limpiar buffer
         if stanzas:

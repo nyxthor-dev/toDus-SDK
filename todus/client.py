@@ -41,13 +41,12 @@ class ToDusClient:
         self.session.headers.update({"Accept-Encoding": "gzip"})
         self._xml_parser = parser.IncrementalParser()
 
-    # ─── Auth HTTP ──────────────────────────────────────────
+    # --- Auth HTTP ---
 
     def request_code(self, phone_number: str) -> None:
-        """Solicita PIN SMS al número de teléfono."""
         headers = {
             "Host": "auth.todus.cu",
-            "User-Agent": f"ToDus {self.version_name} Auth",
+            "User-Agent": "ToDus " + self.version_name + " Auth",
             "Content-Type": "application/x-protobuf",
         }
         data = (
@@ -65,10 +64,9 @@ class ToDusClient:
         resp.raise_for_status()
 
     def validate_code(self, phone_number: str, code: str) -> str:
-        """Valida PIN y retorna password de 96 caracteres."""
         headers = {
             "Host": "auth.todus.cu",
-            "User-Agent": f"ToDus {self.version_name} Auth",
+            "User-Agent": "ToDus " + self.version_name + " Auth",
             "Content-Type": "application/x-protobuf",
         }
         data = (
@@ -100,10 +98,9 @@ class ToDusClient:
             return "".join(c for c in raw if c in string.printable and c not in "\r\n")[:96]
 
     def login(self, phone_number: str, password: str) -> str:
-        """Login y retorna token JWT."""
         headers = {
             "Host": "auth.todus.cu",
-            "user-agent": f"ToDus {self.version_name} Auth",
+            "user-agent": "ToDus " + self.version_name + " Auth",
             "content-type": "application/x-protobuf",
         }
         data = (
@@ -123,14 +120,13 @@ class ToDusClient:
             timeout=30,
         )
         if resp.status_code == 403:
-            raise AuthenticationError("Credenciales inválidas")
+            raise AuthenticationError("Credenciales invalidas")
         resp.raise_for_status()
         return "".join([c for c in resp.text if c in string.printable])
 
-    # ─── XMPP Socket ────────────────────────────────────────
+    # --- XMPP Socket ---
 
     def _connect_xmpp(self) -> ssl.SSLSocket:
-        """Establece conexión SSL al servidor XMPP."""
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
         sock = ctx.wrap_socket(socket.socket(socket.AF_INET))
@@ -140,7 +136,6 @@ class ToDusClient:
         return sock
 
     def _recv_all(self, sock: ssl.SSLSocket) -> str | None:
-        """Lee todo lo disponible en el socket."""
         data = b""
         while True:
             try:
@@ -157,7 +152,6 @@ class ToDusClient:
         return data.decode("utf-8", errors="replace")
 
     def _authstr_from_token(self, token: str) -> tuple[str, bytes]:
-        """Extrae phone y authstr SASL desde token JWT."""
         payload = util.jwt_decode_payload(token)
         phone = payload.get("username", "")
         if not phone:
@@ -168,7 +162,6 @@ class ToDusClient:
         return phone, authstr
 
     def _process_handshake(self, response: str, sock, authstr: bytes, sid: str, state: dict) -> bool:
-        """Procesa una fase del handshake."""
         phase = state.get("phase", "init")
 
         if phase == "init":
@@ -194,17 +187,17 @@ class ToDusClient:
 
         if phase == "restream":
             if "<stream:features><b1 xmlns='x4'/>" in response:
-                sock.send(stanza.bind(f"{sid}-1").encode())
+                sock.send(stanza.bind(sid + "-1").encode())
                 state["phase"] = "bind_sent"
                 return True
             if response.startswith("<?xml version='1.0'?><stream:stream") and "<stream:features><b1 xmlns='x4'/>" in response:
-                sock.send(stanza.bind(f"{sid}-1").encode())
+                sock.send(stanza.bind(sid + "-1").encode())
                 state["phase"] = "bind_sent"
                 return True
             return True
 
         if phase == "bind_sent":
-            if f"t='result' i='{sid}-1'>" in response:
+            if "t='result' i='" + sid + "-1'>" in response:
                 return False
             if "<not-authorized/>" in response:
                 raise TokenExpiredError()
@@ -213,7 +206,6 @@ class ToDusClient:
         return True
 
     def _handshake(self, sock: ssl.SSLSocket, token: str) -> None:
-        """Completa handshake SASL + bind."""
         phone, authstr = self._authstr_from_token(token)
         sid = util.generate_token(5)
         state = {"phase": "init"}
@@ -221,14 +213,14 @@ class ToDusClient:
         while True:
             response = self._recv_all(sock)
             if response is None:
-                raise ConnectionLostError("Servidor cerró conexión durante handshake")
+                raise ConnectionLostError("Servidor cerro conexion durante handshake")
             if response == "":
                 continue
 
             if not self._process_handshake(response, sock, authstr, sid, state):
                 return
 
-    # ─── Mensajería ─────────────────────────────────────────
+    # --- Mensajeria ---
 
     def send_message(self, token: str, to_jid: str, body: str) -> None:
         msg = stanza.message(to_jid, body)
@@ -274,7 +266,7 @@ class ToDusClient:
                     raise ConnectionLostError(e)
 
                 if response is None:
-                    raise ConnectionLostError("Servidor cerró conexión")
+                    raise ConnectionLostError("Servidor cerro conexion")
 
                 if response == "":
                     continue
@@ -309,7 +301,7 @@ class ToDusClient:
             except OSError:
                 break
 
-    # ─── Archivos ───────────────────────────────────────────
+    # --- Archivos ---
 
     def reserve_upload_url(self, token: str, size: int, file_type: FileType) -> tuple[str, str]:
         phone, authstr = self._authstr_from_token(token)
@@ -324,7 +316,7 @@ class ToDusClient:
                     raise ConnectionLostError()
                 if response == "":
                     continue
-                if f"i='{sid}-3'" in response and "put='" in response:
+                if "i='" + sid + "-3'" in response and "put='" in response:
                     match = re.match(r".*put='(.*)' get='(.*)' stat.*", response)
                     if match:
                         up_url = match.group(1).replace("amp;", "")
@@ -336,7 +328,6 @@ class ToDusClient:
         return up_url, down_url
 
     def get_real_download_url(self, token: str, url: str) -> str:
-        """Resuelve URL real de descarga via XMPP."""
         phone, authstr = self._authstr_from_token(token)
         sid = util.generate_token(5)
 
@@ -348,7 +339,7 @@ class ToDusClient:
                     raise ConnectionLostError()
                 if response == "":
                     continue
-                if f"i='{sid}-2'" in response and "du='" in response:
+                if "i='" + sid + "-2'" in response and "du='" in response:
                     match = re.match(".*du='(.*)' stat.*", response)
                     if match:
                         return match.group(1).replace("amp;", "")
@@ -360,7 +351,6 @@ class ToDusClient:
 
     def upload_file(self, token: str, data: bytes, file_type: FileType = FileType.FILE) -> str:
         up_url, down_url = self.reserve_upload_url(token, len(data), file_type)
-        # S3 presigned URL: solo Content-Length, sin auth headers ni session headers
         resp = requests.put(
             up_url,
             data=data,
@@ -373,16 +363,16 @@ class ToDusClient:
     def download_file(self, token: str, url: str, path: str) -> int:
         real_url = self.get_real_download_url(token, url)
         headers = {
-            "User-Agent": f"ToDus {self.version_name} HTTP-Download",
-            "Authorization": f"Bearer {token}",
+            "User-Agent": "ToDus " + self.version_name + " HTTP-Download",
+            "Authorization": "Bearer " + token,
         }
-        temp_path = f"{path}.part"
+        temp_path = path + ".part"
         size = -1
         with open(temp_path, "ab") as f:
             pos = f.tell()
             while pos < size or size == -1:
                 if pos:
-                    headers["Range"] = f"bytes={pos}-"
+                    headers["Range"] = "bytes=" + str(pos) + "-"
                 try:
                     with self.session.get(real_url, headers=headers, stream=True, timeout=60) as resp:
                         resp.raise_for_status()
@@ -396,14 +386,13 @@ class ToDusClient:
         return size
 
     def download_file_to_folder(self, token: str, url: str, folder: str, filename: str = "") -> tuple[int, str]:
-        """Descarga archivo con debug completo."""
-        print(f"   [DEBUG] Iniciando descarga...")
-        print(f"   [DEBUG] URL original: {url[:80]}...")
-        print(f"   [DEBUG] Token presente: {bool(token)}")
+        print("   [DEBUG] Iniciando descarga...")
+        print("   [DEBUG] URL original: " + url[:80] + "...")
+        print("   [DEBUG] Token presente: " + str(bool(token)))
 
         headers = {
-            "User-Agent": f"ToDus {self.version_name} HTTP-Download",
-            "Authorization": f"Bearer {token}",
+            "User-Agent": "ToDus " + self.version_name + " HTTP-Download",
+            "Authorization": "Bearer " + token,
         }
 
         os.makedirs(folder, exist_ok=True)
@@ -412,46 +401,43 @@ class ToDusClient:
             filename = os.path.basename(url.split("?")[0]) or "download"
 
         final_path = os.path.join(folder, filename)
-        temp_path = f"{final_path}.part"
+        temp_path = final_path + ".part"
 
-        print(f"   [DEBUG] Guardando en: {temp_path}")
+        print("   [DEBUG] Guardando en: " + temp_path)
 
-        # BORRAR archivo .part anterior si existe (descarga incompleta)
         if os.path.exists(temp_path):
             os.remove(temp_path)
-            print(f"   [DEBUG] Borrado .part anterior")
+            print("   [DEBUG] Borrado .part anterior")
 
-        # INTENTAR DESCARGA DIRECTA PRIMERO
-        print(f"   [DEBUG] Intentando descarga directa...")
+        print("   [DEBUG] Intentando descarga directa...")
         try:
-            print(f"   [DEBUG] HEAD request a URL...")
+            print("   [DEBUG] HEAD request a URL...")
             test_resp = self.session.head(url, headers=headers, timeout=15, allow_redirects=True)
-            print(f"   [DEBUG] HEAD status: {test_resp.status_code}")
-            print(f"   [DEBUG] HEAD headers: {dict(test_resp.headers)}")
+            print("   [DEBUG] HEAD status: " + str(test_resp.status_code))
+            print("   [DEBUG] HEAD headers: " + str(dict(test_resp.headers)))
 
             if test_resp.status_code in (200, 206, 401, 403, 302, 301):
-                print(f"   [DEBUG] URL directa parece válida, procediendo con GET")
+                print("   [DEBUG] URL directa parece valida, procediendo con GET")
                 real_url = url
             else:
-                print(f"   [DEBUG] HEAD falló, intentando resolver via XMPP...")
+                print("   [DEBUG] HEAD fallo, intentando resolver via XMPP...")
                 real_url = self.get_real_download_url(token, url)
-                print(f"   [DEBUG] URL resuelta via XMPP: {real_url[:80] if real_url else 'VACIA'}...")
+                print("   [DEBUG] URL resuelta via XMPP: " + (real_url[:80] if real_url else "VACIA") + "...")
                 if not real_url:
                     raise Exception("No se pudo resolver URL de descarga")
         except Exception as e:
-            print(f"   [DEBUG] Error en HEAD: {e}")
-            print(f"   [DEBUG] Intentando resolver via XMPP...")
+            print("   [DEBUG] Error en HEAD: " + str(e))
+            print("   [DEBUG] Intentando resolver via XMPP...")
             try:
                 real_url = self.get_real_download_url(token, url)
-                print(f"   [DEBUG] URL resuelta: {real_url[:80] if real_url else 'VACIA'}...")
+                print("   [DEBUG] URL resuelta: " + (real_url[:80] if real_url else "VACIA") + "...")
                 if not real_url:
                     raise Exception("No se pudo resolver URL")
             except Exception as e2:
-                print(f"   [DEBUG] Error XMPP también: {e2}")
-                raise Exception(f"No se pudo obtener URL de descarga: {e2}")
+                print("   [DEBUG] Error XMPP tambien: " + str(e2))
+                raise Exception("No se pudo obtener URL de descarga: " + str(e2))
 
-        # DESCARGA
-        print(f"   [DEBUG] Iniciando GET a: {real_url[:80]}...")
+        print("   [DEBUG] Iniciando GET a: " + real_url[:80] + "...")
         size = -1
         downloaded = 0
         start_time = time.time()
@@ -460,14 +446,14 @@ class ToDusClient:
         with open(temp_path, "wb") as f:
             try:
                 with self.session.get(real_url, headers=headers, stream=True, timeout=300) as resp:
-                    print(f"   [DEBUG] GET status: {resp.status_code}")
-                    print(f"   [DEBUG] GET headers: Content-Length={resp.headers.get('Content-Length', 'N/A')}")
+                    print("   [DEBUG] GET status: " + str(resp.status_code))
+                    print("   [DEBUG] GET headers: Content-Length=" + str(resp.headers.get("Content-Length", "N/A")))
 
                     if resp.status_code not in (200, 206):
-                        raise Exception(f"HTTP {resp.status_code}: {resp.text[:100]}")
+                        raise Exception("HTTP " + str(resp.status_code) + ": " + resp.text[:100])
 
                     size = int(resp.headers.get("Content-Length", 0))
-                    print(f"   [DEBUG] Tamaño total: {util.format_size(size)}")
+                    print("   [DEBUG] Tamano total: " + util.format_size(size))
 
                     for chunk in resp.iter_content(chunk_size=8192):
                         if chunk:
@@ -476,21 +462,20 @@ class ToDusClient:
                             if downloaded - last_progress >= (500 * 1024):
                                 elapsed = time.time() - start_time
                                 speed = downloaded / elapsed if elapsed > 0 else 0
-                                print(f"   ⬇️  {util.format_size(downloaded)} / {util.format_size(size)} @ {util.format_size(int(speed))}/s")
+                                print("   Descargando " + util.format_size(downloaded) + " / " + util.format_size(size) + " @ " + util.format_size(int(speed)) + "/s")
                                 last_progress = downloaded
 
-                    print(f"   [DEBUG] Descarga completada: {downloaded} bytes")
+                    print("   [DEBUG] Descarga completada: " + str(downloaded) + " bytes")
             except Exception as e:
-                print(f"   [DEBUG] Error durante GET: {e}")
+                print("   [DEBUG] Error durante GET: " + str(e))
                 raise
 
-        # RENOMBRAR
-        print(f"   [DEBUG] Renombrando {temp_path} -> {final_path}")
+        print("   [DEBUG] Renombrando " + temp_path + " -> " + final_path)
         os.rename(temp_path, final_path)
-        print(f"   ✅ Descarga completa: {util.format_size(downloaded)}")
+        print("   Descarga completa: " + util.format_size(downloaded))
         return downloaded, final_path
 
-    # ─── Context Manager XMPP ───────────────────────────────
+    # --- Context Manager XMPP ---
 
     @contextmanager
     def _xmpp_session(self, token: str):
@@ -577,10 +562,30 @@ class ToDusClient2(ToDusClient):
             except (ConnectionLostError, OSError, socket.error):
                 time.sleep(15)
 
+    # --- API homogeneizada: todos los metodos usan self._token ---
+
+    def reserve_upload_url(self, size: int, file_type: FileType) -> tuple[str, str]:
+        if not self._token:
+            raise AuthenticationError("No autenticado")
+        return super().reserve_upload_url(self._token, size, file_type)
+
+    def get_real_download_url(self, url: str) -> str:
+        if not self._token:
+            raise AuthenticationError("No autenticado")
+        return super().get_real_download_url(self._token, url)
+
     def upload_file(self, data: bytes, file_type: FileType = FileType.FILE) -> str:
         if not self._token:
             raise AuthenticationError("No autenticado")
-        return super().upload_file(self._token, data, file_type)
+        up_url, down_url = self.reserve_upload_url(len(data), file_type)
+        resp = requests.put(
+            up_url,
+            data=data,
+            headers={"Content-Length": str(len(data))},
+            timeout=60,
+        )
+        resp.raise_for_status()
+        return down_url
 
     def download_file(self, url: str, path: str) -> int:
         if not self._token:
