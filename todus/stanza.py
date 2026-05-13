@@ -70,6 +70,14 @@ def receipt(to: str, msg_id: str) -> str:
     )
 
 
+def read_receipt(to: str, msg_id: str) -> str:
+    return (
+        f"<message to='{to}' t='chat' xmlns='jc'>"
+        f"<read xmlns='urn:xmpp:read-receipts' id='{msg_id}'/>"
+        f"</message>"
+    )
+
+
 def stream_open(host: str = "im.todus.cu") -> str:
     return f"<stream:stream xmlns='jc' o='{host}' xmlns:stream='x1' v='1.0'>"
 
