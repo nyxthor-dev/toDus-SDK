@@ -1,12 +1,9 @@
-"""Parser de stanzas XMPP/ToDus."""
-
 import re
 from . import util
 from .errors import ParseError
 
 
 def _attr(stanza: str, name: str) -> str:
-    """Extrae atributo de stanza. Soporta comillas simples y dobles."""
     for quote in ("'", '"'):
         pattern = rf"{name}={quote}([^{quote}]+){quote}"
         match = re.search(pattern, stanza)
@@ -16,7 +13,6 @@ def _attr(stanza: str, name: str) -> str:
 
 
 def parse_todus_message(stanza: str) -> dict:
-    """Parsea stanza <m> de ToDus."""
     result = {
         "from": _attr(stanza, "f"),
         "to": _attr(stanza, "o"),
@@ -36,17 +32,14 @@ def parse_todus_message(stanza: str) -> dict:
         "raw": stanza,
     }
 
-    # Body
     match = re.search(r"<b>(.*?)</b>", stanza, re.DOTALL)
     if match:
         result["body"] = util.unescape_xml(match.group(1)).strip()
 
-    # URL de archivo (formato antiguo <u>)
     match = re.search(r"<u>(.*?)</u>", stanza, re.DOTALL)
     if match:
         result["url"] = util.unescape_xml(match.group(1)).strip()
 
-    # Archivo adjunto (formato nuevo <file>) — robusto ante orden de atributos
     file_match = re.search(r"<file\b[^>]*>", stanza)
     if file_match:
         file_tag = file_match.group(0)
@@ -60,21 +53,18 @@ def parse_todus_message(stanza: str) -> dict:
             result["file_size"] = 0
         result["file_hash"] = _attr(file_tag, "h")
 
-    # Offline timestamp
     match = re.search(r"<todus_offline\s+ts='([^']+)'", stanza)
     if not match:
         match = re.search(r'<todus_offline\s+ts="([^"]+)"', stanza)
     if match:
         result["offline_ts"] = match.group(1)
 
-    # Edited
     match = re.search(r"<edited\s+xmlns='edited:n'\s+i='([^']+)'", stanza)
     if not match:
         match = re.search(r'<edited\s+xmlns="edited:n"\s+i="([^"]+)"', stanza)
     if match:
         result["edited"] = match.group(1)
 
-    # Deleted
     match = re.search(r"<deleted\s+xmlns='deleted:n'\s+i='([^']+)'", stanza)
     if not match:
         match = re.search(r'<deleted\s+xmlns="deleted:n"\s+i="([^"]+)"', stanza)
@@ -85,7 +75,6 @@ def parse_todus_message(stanza: str) -> dict:
 
 
 def parse_presence(stanza: str) -> dict:
-    """Parsea stanza <p> de presencia."""
     result = {
         "from": _attr(stanza, "f"),
         "to": _attr(stanza, "o"),
@@ -112,7 +101,6 @@ def parse_presence(stanza: str) -> dict:
 
 
 def parse_iq(stanza: str) -> dict:
-    """Parsea stanza IQ."""
     result = {
         "from": _attr(stanza, "f"),
         "to": _attr(stanza, "o"),
@@ -127,37 +115,22 @@ def parse_iq(stanza: str) -> dict:
         if match:
             result["error"] = match.group(1)
 
-    # Upload URLs — robusto ante orden de atributos
     if _attr(stanza, "put"):
         result["upload_url"] = _attr(stanza, "put").replace("amp;", "")
         result["download_url"] = _attr(stanza, "get").replace("amp;", "")
 
-    # Download URL
     if _attr(stanza, "du"):
         result["real_url"] = _attr(stanza, "du").replace("amp;", "")
 
     return result
 
 
-def extract_all_stanzas(xml: str) -> dict:
-    """Extrae todas las stanzas de un chunk XML."""
-    return {
-        "messages": re.findall(r"<m\b.*?</m>", xml, re.DOTALL),
-        "presences": re.findall(r"<p\b.*?</p>", xml, re.DOTALL),
-        "iqs": re.findall(r"<iq\b.*?</iq>", xml, re.DOTALL),
-        "streams": re.findall(r"<\?xml[^?]*\?><stream:stream[^>]*/?>", xml),
-        "unknown": [],
-    }
-
-
 class IncrementalParser:
-    """Parser incremental que maneja stanzas fragmentadas por TCP."""
 
     def __init__(self):
         self._buffer = ""
 
     def feed(self, chunk: str) -> list[dict]:
-        """Alimenta con nuevo chunk y retorna stanzas completas parseadas."""
         if not chunk:
             return []
 
@@ -183,7 +156,6 @@ class IncrementalParser:
                 except Exception:
                     pass
 
-        # Limpiar buffer
         if stanzas:
             last_end = 0
             for s in stanzas:
@@ -201,5 +173,5 @@ class IncrementalParser:
         return stanzas
 
     def reset(self):
-        """Limpia el buffer."""
         self._buffer = ""
+        
