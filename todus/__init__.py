@@ -1,5 +1,3 @@
-"""ToDus Python Library - Cliente XMPP/HTTP para ToDus."""
-
 from .client import ToDusClient, ToDusClient2
 from .types import FileType, ChatState, MessageType, PresenceShow
 from .errors import (
