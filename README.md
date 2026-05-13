@@ -1,6 +1,6 @@
 <div align="center">
 
-# 📡 todus-lib
+# 📡 OrionDus ✉️
 
 <img src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcDZ3NW84eDhzNm1xd3pjOXNuMWQwbTlvdGhleWdicXgwNmNhMmQ5ZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/qgQUggAC3Pfv687qPC/giphy.gif" width="480" alt="todus-lib banner"/>
 
