@@ -170,7 +170,7 @@ todus-lib/
   <tr>
     <td align="center">
       <a href="https://github.com/vm1008079-web">
-        <img src="https://github.com/vm100879-web.png" width="80px;" alt=""/><br />
+        <img src="https://avatars.githubusercontent.com/u/228504268?v=4&size=64" width="80px;" alt=""/><br />
         <sub><b>OrionWolf</b></sub>
       </a><br/>
       🛠️ Autor principal
