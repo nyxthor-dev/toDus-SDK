@@ -1,79 +1,215 @@
-# todus-lib
+<div align="center">
 
-Librería Python para interactuar con la API de **ToDus** (mensajería cubana).
+# 📡 todus-lib
 
-## Instalación
+<img src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcDZ3NW84eDhzNm1xd3pjOXNuMWQwbTlvdGhleWdicXgwNmNhMmQ5ZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/qgQUggAC3Pfv687qPC/giphy.gif" width="480" alt="todus-lib banner"/>
+
+**Cliente Python no oficial para ToDus — la plataforma de mensajería cubana**
+
+![Python](https://img.shields.io/badge/Python-3.8%2B-blue?style=flat-square&logo=python)
+![Version](https://img.shields.io/badge/version-1.0.0-green?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-yellow?style=flat-square)
+![Status](https://img.shields.io/badge/status-Beta-orange?style=flat-square)
+
+</div>
+
+---
+
+## 📖 Información General
+
+`todus-lib` es una librería Python que implementa el protocolo de **ToDus**, la aplicación de mensajería más utilizada en Cuba. Permite a los desarrolladores interactuar programáticamente con la plataforma mediante autenticación HTTP/Protobuf y mensajería en tiempo real vía XMPP sobre SSL.
+
+- **Protocolo de autenticación:** HTTP + Protobuf (`auth.todus.cu`)
+- **Mensajería en tiempo real:** XMPP sobre SSL (`im.todus.cu:5222`)
+- **Transferencia de archivos:** HTTP con soporte de reanudación
+- **Versión simulada:** `0.40.29` (código `21833`)
+
+---
+
+## ✨ Características
+
+- 🔐 **Autenticación completa** — Registro con PIN SMS, validación de código y login con JWT
+- 💬 **Envío y recepción de mensajes** — Mensajes de texto en tiempo real vía XMPP
+- 📎 **Soporte multimedia** — Envío y recepción de imágenes, audio, video, voz y archivos genéricos
+- ⬆️ **Subida de archivos** — Upload directo con resolución de URL via XMPP
+- ⬇️ **Descarga con reanudación** — Descarga robusta con soporte de archivos parciales (`.part`)
+- 🔄 **Auto-reconexión** — `ToDusClient2` gestiona token expirado y pérdida de conexión automáticamente
+- 📡 **Escucha de mensajes en tiempo real** — Listener con callback y bucle de reconexión
+- 🧩 **Estados de chat XEP-0085** — `composing`, `paused`, `active`, `gone`, `inactive`
+- 🪝 **Manejo de errores tipado** — Jerarquía de excepciones específicas del dominio
+- 🧵 **Thread-safe** — Arquitectura stateless pensada para uso concurrente
+
+---
+
+## 🚀 Instalación
+
+```bash
+git clone https://github.com/tu-usuario/todus-lib.git
+cd todus-lib
+pip install -e .
+```
+
+O directamente como dependencia:
 
 ```bash
 pip install todus-lib
 ```
 
-O copia la carpeta `todus/` a tu proyecto.
+---
 
-## Uso rápido
+## 💡 Ejemplos de Uso
+
+### Registro de nuevo usuario
 
 ```python
-from todus import ToDusClient2, FileType
+from todus import ToDusClient
 
-# Cliente stateful (auto-login, auto-reconnect)
-client = ToDusClient2(phone_number="535xxxxxxx", password="tu-password")
+client = ToDusClient()
+
+# 1. Solicitar PIN por SMS
+client.request_code("53XXXXXXXX")
+
+# 2. Validar el PIN recibido y obtener contraseña
+password = client.validate_code("53XXXXXXXX", "123456")
+print(f"Contraseña: {password}")
+```
+
+---
+
+### Login y envío de mensaje
+
+```python
+from todus import ToDusClient
+
+client = ToDusClient()
+token = client.login("53XXXXXXXX", "mi_password_96chars")
+
+client.send_message(token, "53YYYYYYYY@im.todus.cu", "¡Hola desde todus-lib!")
+```
+
+---
+
+### Cliente stateful con auto-reconexión
+
+```python
+from todus import ToDusClient2
+
+client = ToDusClient2(phone_number="53XXXXXXXX", password="mi_password")
 client.login()
 
 # Enviar mensaje
-client.send_message("535yyyyyyy", "¡Hola desde todus-lib!")
+client.send_message("53YYYYYYYY", "¡Hola!")
 
 # Escuchar mensajes entrantes
-def on_message(msg):
-    print(f"[{msg['from']}] {msg['body']}")
-    if msg['body'].lower() == "hola":
-        client.send_message(msg['from'].split("@")[0], "¡Hola! 👋")
+def on_message(msg: dict):
+    print(f"[{msg['from']}]: {msg['body']}")
 
-client.listen_messages(on_message)
+client.listen_messages(callback=on_message)  # bucle con auto-reconexión
 ```
 
-## Auth (primera vez)
+---
+
+### Subir y enviar un archivo
 
 ```python
-client = ToDusClient2(phone_number="535xxxxxxx")
-client.request_code()  # Te llega SMS
-pin = input("PIN: ")
-client.validate_code(pin)  # Guarda password en client.password
-print(f"Password: {client.password}")
-```
+from todus import ToDusClient2
+from todus.types import FileType
 
-## Archivos
+client = ToDusClient2("53XXXXXXXX", "mi_password")
+client.login()
 
-```python
-# Subir
 with open("foto.jpg", "rb") as f:
-    url = client.upload_file(f.read(), FileType.PICTURE)
-print(f"URL: {url}")
+    url = client.upload_file(f.read(), file_type=FileType.PICTURE)
 
-# Descargar
-size = client.download_file(url, "foto_descargada.jpg")
+client.send_file_message(
+    to_phone="53YYYYYYYY",
+    url=url,
+    file_type=FileType.PICTURE,
+    caption="Mi foto 📸"
+)
 ```
 
-## Estructura
+---
+
+### Descargar un archivo
+
+```python
+size, path = client.download_file_to_folder(
+    url="https://storage.todus.cu/...",
+    folder="./descargas",
+    filename="video.mp4"
+)
+print(f"Descargado: {path} ({size} bytes)")
+```
+
+---
+
+## 📦 Estructura del Proyecto
 
 ```
-todus/
-├── __init__.py      # Exports principales
-├── client.py        # ToDusClient, ToDusClient2
-├── parser.py        # Parseo de stanzas XMPP
-├── stanza.py        # Constructor de stanzas
-├── types.py         # Enums (FileType, ChatState...)
-├── errors.py        # Excepciones
-├── util.py          # Utilidades
-└── constants.py     # Constantes del protocolo
+todus-lib/
+├── todus/
+│   ├── __init__.py        # Exportaciones públicas
+│   ├── client.py          # ToDusClient y ToDusClient2
+│   ├── constants.py       # Hosts, puertos y timeouts
+│   ├── errors.py          # Jerarquía de excepciones
+│   ├── parser.py          # Parser XML incremental XMPP
+│   ├── stanza.py          # Constructores de stanzas XMPP
+│   ├── types.py           # FileType, ChatState, MessageType
+│   └── util.py            # Utilidades (JWT, tokens, formato)
+└── setup.py
 ```
 
-## Protocolo descubierto
+---
 
-- **Auth**: HTTP protobuf a `auth.todus.cu`
-- **Mensajería**: XMPP custom sobre SSL en `im.todus.cu:5222`
-- **Stanzas**: `<m>` (ToDus) en vez de `<message>` (estándar)
-- **Archivos**: HTTP PUT/GET con URLs reservadas vía XMPP
+## 🤝 Colaboradores
 
-## Licencia
+¡Gracias a todas las personas que han contribuido a este proyecto!
 
-MIT
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/tu-usuario">
+        <img src="https://github.com/tu-usuario.png" width="80px;" alt=""/><br />
+        <sub><b>tu-usuario</b></sub>
+      </a><br/>
+      🛠️ Autor principal
+    </td>
+    <!-- Agrega más colaboradores aquí -->
+  </tr>
+</table>
+
+> ¿Quieres contribuir? ¡Los PRs son bienvenidos! Abre un issue o envía tu pull request.
+
+---
+
+## ⚠️ Advertencia
+
+Este proyecto es una implementación **no oficial** e **independiente**. No está afiliado, respaldado ni relacionado con los desarrolladores de ToDus. Úsalo bajo tu propia responsabilidad y respetando los términos de servicio de la plataforma.
+
+---
+
+## 📄 Copyright
+
+```
+MIT License
+
+Copyright (c) 2024 Community Contributors
+
+Se concede permiso, de forma gratuita, a cualquier persona que obtenga una copia
+de este software y los archivos de documentación asociados, para utilizar el software
+sin restricciones, incluyendo sin limitación los derechos de uso, copia, modificación,
+fusión, publicación, distribución, sublicencia y/o venta de copias del software,
+sujeto a las siguientes condiciones:
+
+El aviso de copyright anterior y este aviso de permiso se incluirán en todas
+las copias o partes sustanciales del software.
+
+EL SOFTWARE SE PROPORCIONA "TAL CUAL", SIN GARANTÍA DE NINGÚN TIPO.
+```
+
+---
+
+<div align="center">
+  Hecho con ❤️ por la comunidad • <a href="https://github.com/tu-usuario/todus-lib/issues">Reportar un bug</a> • <a href="https://github.com/tu-usuario/todus-lib/pulls">Contribuir</a>
+</div>
