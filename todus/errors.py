@@ -1,37 +1,35 @@
-"""Excepciones de ToDus."""
-
-
 class ToDusError(Exception):
-    """Base para todos los errores de ToDus."""
+    pass
 
 
 class AuthenticationError(ToDusError):
-    """Credenciales inválidas o sesión expirada."""
+    pass
 
 
 class TokenExpiredError(ToDusError):
-    """El token JWT ya no es válido."""
+    pass
 
 
 class ConnectionLostError(ToDusError):
-    """Conexión XMPP perdida inesperadamente."""
+    pass
 
 
 class MessageError(ToDusError):
-    """Error al enviar o recibir mensaje."""
+    pass
 
 
 class UploadError(ToDusError):
-    """Error en subida/descarga de archivo."""
+    pass
 
 
 class ParseError(ToDusError):
-    """Error parseando stanza XMPP."""
+    pass
 
 
 class RateLimitError(ToDusError):
-    """Demasiadas peticiones en poco tiempo."""
+    pass
 
 
 class StanzaError(ToDusError):
-    """Stanza malformada o no soportada."""
+    pass
+    
