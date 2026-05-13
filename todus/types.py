@@ -1,10 +1,7 @@
-"""Tipos y enumeraciones de ToDus."""
-
-from enum import IntEnum, StrEnum
+from enum import Enum, IntEnum
 
 
 class FileType(IntEnum):
-    """Tipos de archivo soportados por ToDus."""
     FILE = 0
     VOICE = 1
     AUDIO = 2
@@ -14,8 +11,7 @@ class FileType(IntEnum):
     PROFILE_THUMBNAIL = 6
 
 
-class ChatState(StrEnum):
-    """Estados de chat XEP-0085."""
+class ChatState(str, Enum):
     COMPOSING = "composing"
     PAUSED = "paused"
     ACTIVE = "active"
@@ -23,8 +19,7 @@ class ChatState(StrEnum):
     INACTIVE = "inactive"
 
 
-class MessageType(StrEnum):
-    """Tipos de mensaje XMPP."""
+class MessageType(str, Enum):
     CHAT = "chat"
     GROUPCHAT = "groupchat"
     ERROR = "error"
@@ -32,9 +27,9 @@ class MessageType(StrEnum):
     NORMAL = "normal"
 
 
-class PresenceShow(StrEnum):
-    """Estados de presencia XMPP."""
+class PresenceShow(str, Enum):
     CHAT = "chat"
     AWAY = "away"
     XA = "xa"
     DND = "dnd"
+    
