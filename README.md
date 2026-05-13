@@ -169,9 +169,9 @@ todus-lib/
 <table>
   <tr>
     <td align="center">
-      <a href="https://github.com/tu-usuario">
-        <img src="https://github.com/tu-usuario.png" width="80px;" alt=""/><br />
-        <sub><b>tu-usuario</b></sub>
+      <a href="https://github.com/vm1008079-web">
+        <img src="https://github.com/vm100879-web.png" width="80px;" alt=""/><br />
+        <sub><b>OrionWolf</b></sub>
       </a><br/>
       🛠️ Autor principal
     </td>
