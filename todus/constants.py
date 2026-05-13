@@ -1,5 +1,3 @@
-"""Constantes del protocolo ToDus."""
-
 XMPP_HOST = "im.todus.cu"
 XMPP_PORT = 5222
 AUTH_HOST = "auth.todus.cu"
@@ -8,8 +6,6 @@ AUTH_VERSION_CODE = "21833"
 BUFFER_SIZE = 1024 * 1024
 KEEPALIVE_INTERVAL = 25
 DEFAULT_TIMEOUT = 15
-
-# Nuevas constantes
 MAX_RETRIES = 5
 RETRY_DELAY_BASE = 15
 RATE_LIMIT_SECONDS = 2
