@@ -1,4 +1,5 @@
-import json
+"""Cliente XMPP/HTTP para ToDus."""
+
 import logging
 import os
 import re
@@ -7,7 +8,7 @@ import ssl
 import string
 import threading
 import time
-from base64 import b64decode, b64encode
+from base64 import b64encode
 from contextlib import contextmanager
 from typing import Callable
 
@@ -17,6 +18,7 @@ from . import constants, parser, stanza, util
 from .errors import (
     AuthenticationError,
     ConnectionLostError,
+    MessageError,
     TokenExpiredError,
     UploadError,
 )
@@ -26,6 +28,7 @@ logger = logging.getLogger("todus")
 
 
 class ToDusClient:
+    """Cliente stateless para la API de ToDus."""
 
     def __init__(
         self,
@@ -37,6 +40,8 @@ class ToDusClient:
         self.session = requests.Session()
         self.session.headers.update({"Accept-Encoding": "gzip"})
         self._xml_parser = parser.IncrementalParser()
+
+    # --- Auth HTTP ---
 
     def request_code(self, phone_number: str) -> None:
         headers = {
@@ -80,17 +85,16 @@ class ToDusClient:
         )
         resp.raise_for_status()
         content = resp.content
-        try:
-            if b"`" in content:
-                idx = content.index(b"`") + 1
-                return content[idx : idx + 96].decode("utf-8")
-            return content[5:166].decode("utf-8")
-        except UnicodeDecodeError:
-            raw = content.decode("latin-1", errors="ignore")
-            match = re.search(r"[a-f0-9]{96}", raw)
-            if match:
-                return match.group(0)
-            return "".join(c for c in raw if c in string.printable and c not in "\r\n")[:96]
+        # Extracción robusta del token (96 caracteres hex)
+        match = re.search(rb"[a-f0-9]{96}", content)
+        if match:
+            return match.group(0).decode("utf-8")
+        # Fallback: buscar en texto decodificado
+        raw = content.decode("latin-1", errors="ignore")
+        match = re.search(r"[a-f0-9]{96}", raw)
+        if match:
+            return match.group(0)
+        return "".join(c for c in raw if c in string.printable and c not in "\r\n")[:96]
 
     def login(self, phone_number: str, password: str) -> str:
         headers = {
@@ -119,31 +123,43 @@ class ToDusClient:
         resp.raise_for_status()
         return "".join([c for c in resp.text if c in string.printable])
 
+    # --- XMPP Socket ---
+
     def _connect_xmpp(self) -> ssl.SSLSocket:
+        # ToDus usa certificados que pueden no coincidir con el hostname
+        # esperado; mantenemos verify_mode=CERT_REQUIRED pero desactivamos
+        # check_hostname para evitar errores de hostname mismatch.
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
         sock = ctx.wrap_socket(socket.socket(socket.AF_INET))
         sock.settimeout(constants.DEFAULT_TIMEOUT)
         sock.connect((constants.XMPP_HOST, constants.XMPP_PORT))
         sock.send(stanza.stream_open().encode())
         return sock
 
-    def _recv_all(self, sock: ssl.SSLSocket) -> str | None:
+    def _recv_data(self, sock: ssl.SSLSocket) -> str | None:
+        """Lee todos los datos disponibles en el socket hasta timeout corto.
+
+        Retorna None si la conexión se cerró, o string vacío si no hay datos.
+        """
         data = b""
-        while True:
-            try:
-                chunk = sock.recv(constants.BUFFER_SIZE)
-                if not chunk:
-                    return None
-                data += chunk
-                if len(chunk) < constants.BUFFER_SIZE:
+        original_timeout = sock.gettimeout()
+        # Timeout corto para acumular todo lo que ya llegó al kernel
+        sock.settimeout(1.0)
+        try:
+            while True:
+                try:
+                    chunk = sock.recv(constants.BUFFER_SIZE)
+                    if not chunk:
+                        return None
+                    data += chunk
+                except socket.timeout:
                     break
-            except socket.timeout:
-                break
-            except OSError:
-                return None
-        return data.decode("utf-8", errors="replace")
+                except OSError:
+                    return None
+        finally:
+            sock.settimeout(original_timeout)
+        return data.decode("utf-8", errors="replace") if data else ""
 
     def _authstr_from_token(self, token: str) -> tuple[str, bytes]:
         payload = util.jwt_decode_payload(token)
@@ -200,12 +216,12 @@ class ToDusClient:
         return True
 
     def _handshake(self, sock: ssl.SSLSocket, token: str) -> None:
-        phone, authstr = self._authstr_from_token(token)
+        _, authstr = self._authstr_from_token(token)
         sid = util.generate_token(5)
         state = {"phase": "init"}
 
         while True:
-            response = self._recv_all(sock)
+            response = self._recv_data(sock)
             if response is None:
                 raise ConnectionLostError("Servidor cerro conexion durante handshake")
             if response == "":
@@ -214,37 +230,117 @@ class ToDusClient:
             if not self._process_handshake(response, sock, authstr, sid, state):
                 return
 
-    def send_message(self, token: str, to_jid: str, body: str) -> None:
-        msg = stanza.message(to_jid, body)
-        with self._xmpp_session(token) as sock:
-            sock.send(msg.encode())
+    # --- Mensajeria ---
 
-    def send_file_message(self, token: str, to_jid: str, url: str, file_type: FileType, caption: str = "", file_name: str = "", file_size: int = 0) -> None:
-        msg = stanza.file_message(to_jid, url, int(file_type), caption, file_name=file_name, file_size=file_size)
+    def send_message(self, token: str, to_jid: str, body: str) -> str:
+        """Envía mensaje de texto. Retorna el msg_id generado."""
+        mid = util.generate_token(8)
+        msg = stanza.message(to_jid, body, msg_id=mid)
         with self._xmpp_session(token) as sock:
             sock.send(msg.encode())
+        return mid
+
+    def edit_message(self, token: str, to_jid: str, new_body: str, original_msg_id: str) -> str:
+        """Edita un mensaje previamente enviado. Retorna el nuevo msg_id."""
+        mid = util.generate_token(8)
+        msg = stanza.edit_message(to_jid, new_body, original_msg_id, msg_id=mid)
+        with self._xmpp_session(token) as sock:
+            sock.send(msg.encode())
+        return mid
+
+    def send_file_message(self, token: str, to_jid: str, url: str, file_type: FileType, caption: str = "", file_name: str = "", file_size: int = 0) -> str:
+        mid = util.generate_token(8)
+        msg = stanza.file_message(to_jid, url, int(file_type), caption, msg_id=mid, file_name=file_name, file_size=file_size)
+        with self._xmpp_session(token) as sock:
+            sock.send(msg.encode())
+        return mid
+
+    def send_image_message(self, token: str, to_jid: str, url: str, file_name: str, file_size: int, width: int = 0, height: int = 0, thumbnail: str = "", caption: str = "") -> str:
+        """Envía mensaje con imagen adjunta y metadata. Retorna msg_id."""
+        mid = util.generate_token(8)
+
+        msg = stanza.image_message(to_jid, url, file_name, file_size, width, height, thumbnail, caption, msg_id=mid)
+        logger.debug("[STANZA] image_message (con metadata): %s", msg[:200])
+
+        with self._xmpp_session(token) as sock:
+            try:
+                sent = sock.send(msg.encode())
+                logger.debug("[SOCKET] bytes enviados: %d", sent)
+            except Exception as e:
+                logger.error("[SOCKET] error enviando image_message: %s", e)
+                raise
+        return mid
+
+    def send_image_message_simple(self, token: str, to_jid: str, url: str, file_name: str, file_size: int, msg_id: str = "") -> str:
+        """Envía mensaje con imagen SIN metadata (más compatible con versiones antiguas)."""
+        mid = msg_id or util.generate_token(8)
+        msg = stanza.image_message_simple(to_jid, url, file_name, file_size, msg_id=mid)
+        logger.debug("[STANZA] image_message_simple: %s", msg[:200])
+
+        with self._xmpp_session(token) as sock:
+            try:
+                sent = sock.send(msg.encode())
+                logger.debug("[SOCKET] bytes enviados: %d", sent)
+            except Exception as e:
+                logger.error("[SOCKET] error enviando image_message_simple: %s", e)
+                raise
+        return mid
+
+    def send_button_message(self, token: str, to_jid: str, text: str, buttons: list[dict]) -> str:
+        """Envía mensaje con botones interactivos. Retorna msg_id.
+
+        buttons: list[{"text": str, "command": str, "data": str, "size": str}]
+        """
+        mid = util.generate_token(8)
+        msg = stanza.button_message(to_jid, text, buttons, msg_id=mid)
+        with self._xmpp_session(token) as sock:
+            sock.send(msg.encode())
+        return mid
+
+    def send_contact_message(self, token: str, to_jid: str, contact_id: str, contact_name: str, contact_phone: str) -> str:
+        mid = util.generate_token(8)
+        msg = stanza.contact_message(to_jid, contact_id, contact_name, contact_phone, msg_id=mid)
+        with self._xmpp_session(token) as sock:
+            sock.send(msg.encode())
+        return mid
+
+    def send_sticker_message(self, token: str, to_jid: str, sticker_id: str, sticker_name: str, sticker_pack: str, sticker_hash: str) -> str:
+        mid = util.generate_token(8)
+        msg = stanza.sticker_message(to_jid, sticker_id, sticker_name, sticker_pack, sticker_hash, msg_id=mid)
+        with self._xmpp_session(token) as sock:
+            sock.send(msg.encode())
+        return mid
+
+    def send_video_message(self, token: str, to_jid: str, url: str, video_id: str, file_name: str, file_size: int, duration: int, width: int, height: int, thumbnail: str, info_text: str = "") -> str:
+        mid = util.generate_token(8)
+        msg = stanza.video_message(to_jid, url, video_id, file_name, file_size, duration, width, height, thumbnail, msg_id=mid, info_text=info_text)
+        with self._xmpp_session(token) as sock:
+            sock.send(msg.encode())
+        return mid
 
     def send_chat_state(self, token: str, to_jid: str, state: str) -> None:
         st = stanza.chat_state(to_jid, state)
         with self._xmpp_session(token) as sock:
             sock.send(st.encode())
 
-    def listen_messages(self, token: str, callback: Callable[[dict], None]) -> None:
+    def listen_messages(self, token: str, callback: Callable[[dict], None], stop_event: threading.Event | None = None) -> None:
         while True:
+            if stop_event and stop_event.is_set():
+                break
             try:
                 with self._xmpp_session(token) as sock:
-                    self._listen_loop(sock, callback)
+                    self._listen_loop(sock, callback, stop_event)
             except TokenExpiredError:
                 raise
             except (ConnectionLostError, OSError, socket.error):
                 time.sleep(15)
 
-    def _listen_loop(self, sock: ssl.SSLSocket, callback: Callable[[dict], None]) -> None:
-        stop_event = threading.Event()
+    def _listen_loop(self, sock: ssl.SSLSocket, callback: Callable[[dict], None], stop_event: threading.Event | None = None) -> None:
+        local_stop = stop_event or threading.Event()
         ping_id = util.generate_token(5)
         ka = threading.Thread(
             target=self._keepalive_worker,
-            args=(sock, stop_event, ping_id),
+            args=(sock, local_stop, ping_id),
             daemon=True,
         )
         ka.start()
@@ -252,8 +348,10 @@ class ToDusClient:
 
         try:
             while True:
+                if stop_event and stop_event.is_set():
+                    break
                 try:
-                    response = self._recv_all(sock)
+                    response = self._recv_data(sock)
                 except OSError as e:
                     raise ConnectionLostError(e)
 
@@ -268,7 +366,7 @@ class ToDusClient:
                 for msg in stanzas:
                     if msg.get("deleted"):
                         continue
-                    if msg.get("body") or msg.get("url"):
+                    if msg.get("body") or msg.get("url") or msg.get("contact_id") or msg.get("sticker_id") or msg.get("video_url") or msg.get("buttons"):
                         msg_id = msg.get("id", "")
                         msg_from = msg.get("from", "")
                         if msg_id and msg_from:
@@ -280,7 +378,7 @@ class ToDusClient:
                         callback(msg)
 
         finally:
-            stop_event.set()
+            local_stop.set()
             self._xml_parser.reset()
 
     def _keepalive_worker(self, sock: ssl.SSLSocket, stop: threading.Event, ping_id: str) -> None:
@@ -293,14 +391,17 @@ class ToDusClient:
             except OSError:
                 break
 
+    # --- Archivos ---
+
     def reserve_upload_url(self, token: str, size: int, file_type: FileType) -> tuple[str, str]:
+        phone, authstr = self._authstr_from_token(token)
         sid = util.generate_token(5)
         up_url = down_url = ""
 
         with self._xmpp_session(token) as sock:
             sock.send(stanza.upload_query(sid, size, int(file_type)).encode())
             while True:
-                response = self._recv_all(sock)
+                response = self._recv_data(sock)
                 if response is None:
                     raise ConnectionLostError()
                 if response == "":
@@ -317,12 +418,13 @@ class ToDusClient:
         return up_url, down_url
 
     def get_real_download_url(self, token: str, url: str) -> str:
+        _, authstr = self._authstr_from_token(token)
         sid = util.generate_token(5)
 
         with self._xmpp_session(token) as sock:
             sock.send(stanza.download_query(sid, url).encode())
             while True:
-                response = self._recv_all(sock)
+                response = self._recv_data(sock)
                 if response is None:
                     raise ConnectionLostError()
                 if response == "":
@@ -355,39 +457,90 @@ class ToDusClient:
             "Authorization": "Bearer " + token,
         }
         temp_path = path + ".part"
-        size = -1
+        max_retries = 30
+        retries = 0
+
+        # Intentar obtener tamaño total vía HEAD
+        total_size = 0
+        try:
+            head_resp = self.session.head(real_url, headers=headers, timeout=30, allow_redirects=True)
+            if head_resp.status_code in (200, 206):
+                total_size = int(head_resp.headers.get("Content-Length", 0))
+        except Exception:
+            pass
+
         with open(temp_path, "ab") as f:
-            pos = f.tell()
-            while pos < size or size == -1:
-                if pos:
-                    headers["Range"] = "bytes=" + str(pos) + "-"
-                try:
-                    with self.session.get(real_url, headers=headers, stream=True, timeout=60) as resp:
-                        resp.raise_for_status()
-                        content_length = int(resp.headers.get("Content-Length", 0))
-                        if content_length > 0:
-                            size = pos + content_length
-                        for chunk in resp.iter_content(chunk_size=8192):
-                            f.write(chunk)
-                        if size == -1:
-                            size = f.tell()
-                except Exception:
-                    time.sleep(5)
+            while True:
                 pos = f.tell()
+                if total_size > 0 and pos >= total_size:
+                    break
+                if retries >= max_retries:
+                    raise UploadError("Maximos reintentos de descarga alcanzados")
+
+                if pos:
+                    headers["Range"] = f"bytes={pos}-"
+
+                try:
+                    with self.session.get(real_url, headers=headers, stream=True, timeout=120) as resp:
+                        if resp.status_code not in (200, 206):
+                            raise UploadError(f"HTTP {resp.status_code}")
+
+                        # Si no teníamos total_size, intentar obtenerlo del header
+                        if not total_size:
+                            cl = resp.headers.get("Content-Length")
+                            if cl:
+                                total_size = int(cl)
+
+                        # Servidor ignoró Range y envió 200 completo: reiniciar
+                        if pos and resp.status_code == 200:
+                            f.seek(0)
+                            f.truncate()
+                            pos = 0
+
+                        for chunk in resp.iter_content(chunk_size=8192):
+                            if chunk:
+                                f.write(chunk)
+
+                        # Si conocemos tamaño y ya lo completamos, salir
+                        if total_size and f.tell() >= total_size:
+                            break
+                        # Si no conocemos tamaño y la transferencia terminó, asumir completo
+                        if not total_size:
+                            break
+
+                except Exception as e:
+                    logger.warning("Error descargando (reintento %d): %s", retries, e)
+                    retries += 1
+                    time.sleep(5)
+                    continue
+
+                retries = 0  # reset en éxito parcial
+
         os.rename(temp_path, path)
-        return size
+        return os.path.getsize(path)
 
     def download_file_to_folder(self, token: str, url: str, folder: str, filename: str = "") -> tuple[int, str]:
         headers = {
             "User-Agent": "ToDus " + self.version_name + " HTTP-Download",
             "Authorization": "Bearer " + token,
         }
+
         os.makedirs(folder, exist_ok=True)
+
         if not filename:
             filename = os.path.basename(url.split("?")[0]) or "download"
+            # Sanitizar nombre de archivo
+            filename = "".join(c for c in filename if c.isalnum() or c in "._-").strip()
+            if not filename:
+                filename = "download"
+
         final_path = os.path.join(folder, filename)
         temp_path = final_path + ".part"
 
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
+        # Resolver URL real
         try:
             test_resp = self.session.head(url, headers=headers, timeout=15, allow_redirects=True)
             if test_resp.status_code in (200, 206, 401, 403, 302, 301):
@@ -396,24 +549,63 @@ class ToDusClient:
                 real_url = self.get_real_download_url(token, url)
                 if not real_url:
                     raise UploadError("No se pudo resolver URL de descarga")
-        except UploadError:
-            raise
         except Exception:
             real_url = self.get_real_download_url(token, url)
             if not real_url:
-                raise UploadError("No se pudo resolver URL de descarga")
+                raise UploadError("No se pudo obtener URL de descarga")
 
+        size = 0
         downloaded = 0
+        start_time = time.time()
+        last_progress = 0
+        max_retries = 10
+        retries = 0
+
         with open(temp_path, "wb") as f:
-            with self.session.get(real_url, headers=headers, stream=True, timeout=300) as resp:
-                resp.raise_for_status()
-                for chunk in resp.iter_content(chunk_size=8192):
-                    if chunk:
-                        f.write(chunk)
-                        downloaded += len(chunk)
+            while True:
+                if size > 0 and downloaded >= size:
+                    break
+                if retries >= max_retries:
+                    raise UploadError("Maximos reintentos alcanzados en descarga a carpeta")
+
+                try:
+                    with self.session.get(real_url, headers=headers, stream=True, timeout=300) as resp:
+                        if resp.status_code not in (200, 206):
+                            raise UploadError(f"HTTP {resp.status_code}: {resp.text[:100]}")
+
+                        if not size:
+                            size = int(resp.headers.get("Content-Length", 0))
+
+                        for chunk in resp.iter_content(chunk_size=8192):
+                            if chunk:
+                                f.write(chunk)
+                                downloaded += len(chunk)
+                                if downloaded - last_progress >= (500 * 1024):
+                                    elapsed = time.time() - start_time
+                                    speed = downloaded / elapsed if elapsed > 0 else 0
+                                    logger.info("Descargando %s / %s @ %s/s",
+                                                util.format_size(downloaded),
+                                                util.format_size(size) if size else "?",
+                                                util.format_size(int(speed)))
+                                    last_progress = downloaded
+
+                        if size and downloaded >= size:
+                            break
+                        if not size:
+                            break
+                except Exception as e:
+                    logger.warning("Error descarga carpeta (reintento %d): %s", retries, e)
+                    retries += 1
+                    time.sleep(5)
+                    continue
+
+                retries = 0
 
         os.rename(temp_path, final_path)
+        logger.info("Descarga completa: %s", util.format_size(downloaded))
         return downloaded, final_path
+
+    # --- Context Manager XMPP ---
 
     @contextmanager
     def _xmpp_session(self, token: str):
@@ -434,6 +626,7 @@ class ToDusClient:
 
 
 class ToDusClient2(ToDusClient):
+    """Cliente stateful con auto-login y auto-reconnect."""
 
     def __init__(self, phone_number: str, password: str = "", **kwargs) -> None:
         super().__init__(**kwargs)
@@ -471,33 +664,83 @@ class ToDusClient2(ToDusClient):
     def validate_code(self, code: str) -> None:
         self.password = super().validate_code(self.phone_number, code)
 
-    def send_message(self, to_phone: str, body: str) -> None:
+    def send_message(self, to_phone: str, body: str) -> str:
         if not self._token:
             raise AuthenticationError("No autenticado")
         to_jid = util.build_jid(to_phone)
-        super().send_message(self._token, to_jid, body)
+        return super().send_message(self._token, to_jid, body)
 
-    def send_file_message(self, to_phone: str, url: str, file_type: FileType, caption: str = "", file_name: str = "", file_size: int = 0) -> None:
+    def edit_message(self, to_phone: str, new_body: str, original_msg_id: str) -> str:
+        """Edita un mensaje previamente enviado. Retorna el nuevo msg_id."""
         if not self._token:
             raise AuthenticationError("No autenticado")
         to_jid = util.build_jid(to_phone)
-        super().send_file_message(self._token, to_jid, url, file_type, caption, file_name=file_name, file_size=file_size)
+        return super().edit_message(self._token, to_jid, new_body, original_msg_id)
+
+    def send_file_message(self, to_phone: str, url: str, file_type: FileType, caption: str = "", file_name: str = "", file_size: int = 0) -> str:
+        if not self._token:
+            raise AuthenticationError("No autenticado")
+        to_jid = util.build_jid(to_phone)
+        return super().send_file_message(self._token, to_jid, url, file_type, caption, file_name=file_name, file_size=file_size)
+
+    def send_image_message(self, to_phone: str, url: str, file_name: str, file_size: int, width: int = 0, height: int = 0, thumbnail: str = "", caption: str = "") -> str:
+        """Envía mensaje con imagen adjunta y metadata."""
+        if not self._token:
+            raise AuthenticationError("No autenticado")
+        to_jid = util.build_jid(to_phone)
+        return super().send_image_message(self._token, to_jid, url, file_name, file_size, width, height, thumbnail, caption)
+
+    def send_image_message_simple(self, to_phone: str, url: str, file_name: str, file_size: int) -> str:
+        """Envía mensaje con imagen SIN metadata (fallback compatible)."""
+        if not self._token:
+            raise AuthenticationError("No autenticado")
+        to_jid = util.build_jid(to_phone)
+        return super().send_image_message_simple(self._token, to_jid, url, file_name, file_size)
+
+    def send_button_message(self, to_phone: str, text: str, buttons: list[dict]) -> str:
+        """Envía mensaje con botones interactivos."""
+        if not self._token:
+            raise AuthenticationError("No autenticado")
+        to_jid = util.build_jid(to_phone)
+        return super().send_button_message(self._token, to_jid, text, buttons)
+
+    def send_contact_message(self, to_phone: str, contact_id: str, contact_name: str, contact_phone: str) -> str:
+        if not self._token:
+            raise AuthenticationError("No autenticado")
+        to_jid = util.build_jid(to_phone)
+        return super().send_contact_message(self._token, to_jid, contact_id, contact_name, contact_phone)
+
+    def send_sticker_message(self, to_phone: str, sticker_id: str, sticker_name: str, sticker_pack: str, sticker_hash: str) -> str:
+        if not self._token:
+            raise AuthenticationError("No autenticado")
+        to_jid = util.build_jid(to_phone)
+        return super().send_sticker_message(self._token, to_jid, sticker_id, sticker_name, sticker_pack, sticker_hash)
+
+    def send_video_message(self, to_phone: str, url: str, video_id: str, file_name: str, file_size: int, duration: int, width: int, height: int, thumbnail: str, info_text: str = "") -> str:
+        if not self._token:
+            raise AuthenticationError("No autenticado")
+        to_jid = util.build_jid(to_phone)
+        return super().send_video_message(self._token, to_jid, url, video_id, file_name, file_size, duration, width, height, thumbnail, info_text=info_text)
 
     def send_chat_state(self, to_phone: str, state: str) -> None:
         if not self._token:
             raise AuthenticationError("No autenticado")
         super().send_chat_state(self._token, util.build_jid(to_phone), state)
 
-    def listen_messages(self, callback: Callable[[dict], None]) -> None:
+    def listen_messages(self, callback: Callable[[dict], None], stop_event: threading.Event | None = None) -> None:
         if not self._token:
             raise AuthenticationError("No autenticado")
         while True:
             try:
-                super().listen_messages(self._token, callback)
+                super().listen_messages(self._token, callback, stop_event)
             except TokenExpiredError:
                 self.login()
             except (ConnectionLostError, OSError, socket.error):
                 time.sleep(15)
+            if stop_event and stop_event.is_set():
+                break
+
+    # --- API homogeneizada: todos los metodos usan self._token ---
 
     def reserve_upload_url(self, size: int, file_type: FileType) -> tuple[str, str]:
         if not self._token:
