@@ -2,9 +2,9 @@ from setuptools import setup, find_packages
 
 setup(
     name="todus-lib",
-    version="1.1.0",
+    version="1.2.0",
     description="Cliente Python para ToDus (mensajería cubana)",
-    author="Community",
+    author="OrionWolf",
     packages=find_packages(),
     install_requires=["requests"],
     python_requires=">=3.8",
@@ -15,4 +15,3 @@ setup(
         "Programming Language :: Python :: 3",
     ],
 )
- 
