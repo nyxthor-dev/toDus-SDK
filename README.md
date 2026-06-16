@@ -1,215 +1,182 @@
-<div align="center">
+# todus-lib
 
-# 📡 OrionDus ✉️
+**Cliente Python para ToDus** — la plataforma de mensajería instantánea cubana. Soporta chat privado, grupos MUC Light, archivos, imágenes, videos, stickers, botones interactivos y más.
 
-<img src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcDZ3NW84eDhzNm1xd3pjOXNuMWQwbTlvdGhleWdicXgwNmNhMmQ5ZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/qgQUggAC3Pfv687qPC/giphy.gif" width="480" alt="todus-lib banner"/>
-
-**Cliente Python no oficial para ToDus — la plataforma de mensajería cubana**
-
-![Python](https://img.shields.io/badge/Python-3.8%2B-blue?style=flat-square&logo=python)
-![Version](https://img.shields.io/badge/version-1.0.0-green?style=flat-square)
-![License](https://img.shields.io/badge/license-MIT-yellow?style=flat-square)
-![Status](https://img.shields.io/badge/status-Beta-orange?style=flat-square)
-
-</div>
+> **Versión:** 1.3.0  
+> **Python:** >= 3.8  
+> **Autor:** OrionWolf
 
 ---
 
-## 📖 Información General
-
-`todus-lib` es una librería Python que implementa el protocolo de **ToDus**, la aplicación de mensajería más utilizada en Cuba. Permite a los desarrolladores interactuar programáticamente con la plataforma mediante autenticación HTTP/Protobuf y mensajería en tiempo real vía XMPP sobre SSL.
-
-- **Protocolo de autenticación:** HTTP + Protobuf (`auth.todus.cu`)
-- **Mensajería en tiempo real:** XMPP sobre SSL (`im.todus.cu:5222`)
-- **Transferencia de archivos:** HTTP con soporte de reanudación
-- **Versión simulada:** `0.40.29` (código `21833`)
-
----
-
-## ✨ Características
-
-- 🔐 **Autenticación completa** — Registro con PIN SMS, validación de código y login con JWT
-- 💬 **Envío y recepción de mensajes** — Mensajes de texto en tiempo real vía XMPP
-- 📎 **Soporte multimedia** — Envío y recepción de imágenes, audio, video, voz y archivos genéricos
-- ⬆️ **Subida de archivos** — Upload directo con resolución de URL via XMPP
-- ⬇️ **Descarga con reanudación** — Descarga robusta con soporte de archivos parciales (`.part`)
-- 🔄 **Auto-reconexión** — `ToDusClient2` gestiona token expirado y pérdida de conexión automáticamente
-- 📡 **Escucha de mensajes en tiempo real** — Listener con callback y bucle de reconexión
-- 🧩 **Estados de chat XEP-0085** — `composing`, `paused`, `active`, `gone`, `inactive`
-- 🪝 **Manejo de errores tipado** — Jerarquía de excepciones específicas del dominio
-- 🧵 **Thread-safe** — Arquitectura stateless pensada para uso concurrente
-
----
-
-## 🚀 Instalación
+## 📦 Instalación
 
 ```bash
-git clone https://github.com/tu-usuario/todus-lib.git
-cd todus-lib
+pip install requests
+python setup.py install
+```
+
+O directamente desde la carpeta:
+
+```bash
 pip install -e .
 ```
 
-O directamente como dependencia:
-
-```bash
-pip install todus-lib
-```
-
 ---
 
-## 💡 Ejemplos de Uso
+## 🚀 Uso Rápido
 
-### Registro de nuevo usuario
-
-```python
-from todus import ToDusClient
-
-client = ToDusClient()
-
-# 1. Solicitar PIN por SMS
-client.request_code("53XXXXXXXX")
-
-# 2. Validar el PIN recibido y obtener contraseña
-password = client.validate_code("53XXXXXXXX", "123456")
-print(f"Contraseña: {password}")
-```
-
----
-
-### Login y envío de mensaje
-
-```python
-from todus import ToDusClient
-
-client = ToDusClient()
-token = client.login("53XXXXXXXX", "mi_password_96chars")
-
-client.send_message(token, "53YYYYYYYY@im.todus.cu", "¡Hola desde todus-lib!")
-```
-
----
-
-### Cliente stateful con auto-reconexión
+### 1. Cliente stateful (recomendado)
 
 ```python
 from todus import ToDusClient2
 
-client = ToDusClient2(phone_number="53XXXXXXXX", password="mi_password")
+client = ToDusClient2(phone_number="535xxxxxxx", password="tu_password")
 client.login()
 
-# Enviar mensaje
-client.send_message("53YYYYYYYY", "¡Hola!")
+# Enviar mensaje de texto
+client.send_message("535yyyyyyy", "¡Hola desde Python!")
 
-# Escuchar mensajes entrantes
-def on_message(msg: dict):
-    print(f"[{msg['from']}]: {msg['body']}")
-
-client.listen_messages(callback=on_message)  # bucle con auto-reconexión
-```
-
----
-
-### Subir y enviar un archivo
-
-```python
-from todus import ToDusClient2
-from todus.types import FileType
-
-client = ToDusClient2("53XXXXXXXX", "mi_password")
-client.login()
-
-with open("foto.jpg", "rb") as f:
-    url = client.upload_file(f.read(), file_type=FileType.PICTURE)
-
-client.send_file_message(
-    to_phone="53YYYYYYYY",
-    url=url,
-    file_type=FileType.PICTURE,
-    caption="Mi foto 📸"
+# Enviar imagen
+client.send_image_message(
+    "535yyyyyyy",
+    url="https://...",
+    file_name="foto.jpg",
+    file_size=102400
 )
 ```
 
----
-
-### Descargar un archivo
+### 2. Autenticación por primera vez (SMS)
 
 ```python
-size, path = client.download_file_to_folder(
-    url="https://storage.todus.cu/...",
-    folder="./descargas",
-    filename="video.mp4"
-)
-print(f"Descargado: {path} ({size} bytes)")
+client = ToDusClient2(phone_number="535xxxxxxx")
+client.request_code()          # Recibes SMS con PIN
+client.validate_code("123456") # Guarda client.password
+print("Guarda esta contraseña:", client.password)
+client.login()
+```
+
+### 3. Escuchar mensajes
+
+```python
+def on_message(msg):
+    print(f"De: {msg['from']} — {msg['body']}")
+
+client.listen_messages(on_message)
 ```
 
 ---
 
-## 📦 Estructura del Proyecto
+## 📁 Estructura del Proyecto
 
 ```
 todus-lib/
-├── todus/
-│   ├── __init__.py        # Exportaciones públicas
-│   ├── client.py          # ToDusClient y ToDusClient2
-│   ├── constants.py       # Hosts, puertos y timeouts
-│   ├── errors.py          # Jerarquía de excepciones
-│   ├── parser.py          # Parser XML incremental XMPP
-│   ├── stanza.py          # Constructores de stanzas XMPP
-│   ├── types.py           # FileType, ChatState, MessageType
-│   └── util.py            # Utilidades (JWT, tokens, formato)
-└── setup.py
+├── todus/                  # Código fuente de la librería
+│   ├── __init__.py         # Exports principales
+│   ├── client.py           # ToDusClient y ToDusClient2
+│   ├── group.py            # Soporte para grupos MUC Light
+│   ├── stanza.py           # Constructor de stanzas XMPP
+│   ├── parser.py           # Parser incremental de stanzas
+│   ├── types.py            # Enums (FileType, ChatState, etc.)
+│   ├── util.py             # Utilidades (JID, XML, JWT, etc.)
+│   ├── constants.py        # Hosts, puertos, versiones
+│   ├── errors.py           # Excepciones personalizadas
+│   └── setup.py            # Configuración de setuptools
+├── examples/               # Ejemplos de uso
+│   └── bot.py              # Bot con comando /start
+└── README.md               # Este archivo
 ```
 
 ---
 
-## 🤝 Colaboradores
+## 🤖 Bot de Ejemplo
 
-¡Gracias a todas las personas que han contribuido a este proyecto!
+En [`examples/bot.py`](examples/bot.py) encontrás un bot funcional con los comandos:
 
-<table>
-  <tr>
-    <td align="center">
-      <a href="https://github.com/vm1008079-web">
-        <img src="https://avatars.githubusercontent.com/u/228504268?v=4&size=64" width="80px;" alt=""/><br />
-        <sub><b>OrionWolf</b></sub>
-      </a><br/>
-      🛠️ Autor principal
-    </td>
-    <!-- Agrega más colaboradores aquí -->
-  </tr>
-</table>
+| Comando | Descripción |
+|---------|-------------|
+| `/start` | Mensaje de bienvenida con lista de comandos |
+| `/info`  | Información sobre la librería |
+| `/ping`  | Responde "pong" |
 
-> ¿Quieres contribuir? ¡Los PRs son bienvenidos! Abre un issue o envía tu pull request.
+### Ejecutar el bot:
 
----
-
-## ⚠️ Advertencia
-
-Este proyecto es una implementación **no oficial** e **independiente**. No está afiliado, respaldado ni relacionado con los desarrolladores de ToDus. Úsalo bajo tu propia responsabilidad y respetando los términos de servicio de la plataforma.
-
----
-
-## 📄 Copyright
-
+```bash
+export TODUS_PHONE=535xxxxxxx
+export TODUS_PASSWORD=tu_password
+python examples/bot.py
 ```
+
+El bot responde automáticamente a cualquier mensaje con un eco, salvo que sea uno de los comandos anteriores.
+
+---
+
+## 📡 Tipos de Mensaje Soportados
+
+| Tipo | Método (ToDusClient2) |
+|------|----------------------|
+| Texto | `send_message(to, body)` |
+| Imagen | `send_image_message(to, url, file_name, file_size, ...)` |
+| Video | `send_video_message(to, url, video_id, file_name, ...)` |
+| Archivo | `send_file_message(to, url, file_type, ...)` |
+| Sticker | `send_sticker_message(to, sticker_id, ...)` |
+| Contacto | `send_contact_message(to, contact_id, ...)` |
+| Botones | `send_button_message(to, text, buttons)` |
+| Editar | `edit_message(to, new_body, original_msg_id)` |
+| Eliminar | `delete_message(to, message_id)` |
+
+> **Auto-detección de destino:** si el `to` no es un número cubano (10 dígitos empezando por 53), se asume que es un `group_id` y el mensaje se envía al grupo automáticamente.
+
+---
+
+## 👥 Grupos MUC Light
+
+```python
+# Unirse a un grupo
+client.groups.join("mi-grupo-id")
+
+# Enviar mensaje a grupo (auto-detectado)
+client.send_message("mi-grupo-id", "Hola grupo!")
+
+# Callback específico por grupo
+client.groups.on_group_message("mi-grupo-id", lambda m: print(m))
+```
+
+---
+
+## 📤 Subir y Descargar Archivos
+
+```python
+# Subir
+with open("foto.jpg", "rb") as f:
+    url = client.upload_file(f.read(), FileType.PICTURE)
+
+# Descargar
+size, path = client.download_file_to_folder(url, "./descargas")
+```
+
+---
+
+## ⚠️ Excepciones
+
+| Excepción | Cuándo ocurre |
+|-----------|---------------|
+| `AuthenticationError` | Credenciales inválidas o falta autenticación |
+| `TokenExpiredError` | El token JWT expiró |
+| `ConnectionLostError` | Se perdió la conexión XMPP |
+| `UploadError` | Error al subir/descargar archivo |
+| `GroupError` | Error en operación de grupo |
+| `ParseError` | Stanza malformada |
+
+---
+
+## 🔗 Recursos
+
+- **ToDus oficial:** https://todus.cu  
+- **Apklis:** https://www.apklis.cu/application/cu.todus.android  
+- **Cliente CLI original (adbenitez):** https://github.com/adbenitez/todus
+
+---
+
+## 📄 Licencia
+
 MIT License
-
-Copyright (c) 2024 Community Contributors
-
-Se concede permiso, de forma gratuita, a cualquier persona que obtenga una copia
-de este software y los archivos de documentación asociados, para utilizar el software
-sin restricciones, incluyendo sin limitación los derechos de uso, copia, modificación,
-fusión, publicación, distribución, sublicencia y/o venta de copias del software,
-sujeto a las siguientes condiciones:
-
-El aviso de copyright anterior y este aviso de permiso se incluirán en todas
-las copias o partes sustanciales del software.
-
-EL SOFTWARE SE PROPORCIONA "TAL CUAL", SIN GARANTÍA DE NINGÚN TIPO.
-```
-
----
-
-<div align="center">
-  Hecho con ❤️ por la comunidad • <a href="https://github.com/tu-usuario/todus-lib/issues">Reportar un bug</a> • <a href="https://github.com/tu-usuario/todus-lib/pulls">Contribuir</a>
-</div>
