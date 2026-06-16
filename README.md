@@ -1,41 +1,40 @@
-📱 todus-lib
+<h1>📱 todus-lib</h1>
 
-Cliente Python para ToDus — la plataforma de mensajería instantánea cubana. Soporta chat privado, grupos MUC Light, archivos, imágenes, videos, stickers, botones interactivos y más.
+<p><strong>Cliente Python para ToDus</strong> — la plataforma de mensajería instantánea cubana. Soporta chat privado, grupos MUC Light, archivos, imágenes, videos, stickers, botones interactivos y más.</p>
 
-Versión: 1.3.0
-Python: >= 3.8
-Autor: OrionWolf
+<ul>
+  <li><strong>Versión:</strong> 1.3.0</li>
+  <li><strong>Python:</strong> >= 3.8</li>
+  <li><strong>Autor:</strong> OrionWolf</li>
+</ul>
 
----
+<hr>
 
-📦 Instalación
+<h2>📦 Instalación</h2>
 
-```bash
-pip install requests
-python setup.py install
-```
+<pre><code>pip install requests
+python setup.py install</code></pre>
 
-O directamente desde la carpeta:
+<p>O directamente desde la carpeta:</p>
 
-```bash
-pip install -e .
-```
+<pre><code>pip install -e .</code></pre>
 
----
+<hr>
 
-🔐 Autenticación (¡Importante!)
+<h2>🔐 Autenticación (¡Importante!)</h2>
 
-ToDus no usa contraseñas elegidas por el usuario. El proceso de autenticación tiene dos pasos:
+<p>ToDus no usa contraseñas elegidas por el usuario. El proceso de autenticación tiene dos pasos:</p>
 
-1. Obtener un token largo (96 caracteres) mediante validación por SMS.
-2. Usar ese token para hacer login y obtener un JWT de sesión, que se usa para todas las comunicaciones.
+<ol>
+  <li>Obtener un token largo (96 caracteres) mediante validación por SMS.</li>
+  <li>Usar ese token para hacer login y obtener un JWT de sesión, que se usa para todas las comunicaciones.</li>
+</ol>
 
-El cliente ToDusClient2 guarda ese token largo en el atributo password (nombre histórico), pero en la práctica debes entenderlo como auth_token.
+<p>El cliente <code>ToDusClient2</code> guarda ese token largo en el atributo <code>password</code> (nombre histórico), pero en la práctica debes entenderlo como <code>auth_token</code>.</p>
 
-🔹 Flujo para primera vez (SMS)
+<h3>🔹 Flujo para primera vez (SMS)</h3>
 
-```python
-from todus import ToDusClient2
+<pre><code>from todus import ToDusClient2
 
 client = ToDusClient2(phone_number="535xxxxxxx")  # sin password aún
 
@@ -48,34 +47,28 @@ client.validate_code("123456")
 # ¡Guárdalo en un lugar seguro para futuras sesiones!
 
 # 3. Obtener el JWT de sesión
-client.login()   # ahora client.logged == True
-```
+client.login()   # ahora client.logged == True</code></pre>
 
-🔹 Si ya tienes el token largo (de una sesión anterior)
+<h3>🔹 Si ya tienes el token largo (de una sesión anterior)</h3>
 
-```python
-client = ToDusClient2(phone_number="535xxxxxxx", password="ese_token_largo_que_guardaste")
-client.login()   # obtiene el JWT internamente
-```
+<pre><code>client = ToDusClient2(phone_number="535xxxxxxx", password="ese_token_largo_que_guardaste")
+client.login()   # obtiene el JWT internamente</code></pre>
 
-⚠️ Importante: Nunca pases un JWT directamente al constructor. El cliente se encarga de renovarlo automáticamente cuando expira. El parámetro password espera el token largo de 96 caracteres.
+<p><strong>⚠️ Importante:</strong> Nunca pases un JWT directamente al constructor. El cliente se encarga de renovarlo automáticamente cuando expira. El parámetro <code>password</code> espera el token largo de 96 caracteres.</p>
 
----
+<hr>
 
-🚀 Uso Rápido
+<h2>🚀 Uso Rápido</h2>
 
-Enviar mensajes (privados y grupos automáticamente)
+<h3>Enviar mensajes (privados y grupos automáticamente)</h3>
 
-```python
-# Asumiendo que ya hiciste login
+<pre><code># Asumiendo que ya hiciste login
 client.send_message("535yyyyyyy", "¡Hola mundo!")   # privado
-client.send_message("mi-grupo-id", "Hola grupo!")   # grupo (auto-detectado)
-```
+client.send_message("mi-grupo-id", "Hola grupo!")   # grupo (auto-detectado)</code></pre>
 
-Enviar imagen (con subida previa)
+<h3>Enviar imagen (con subida previa)</h3>
 
-```python
-from todus import FileType
+<pre><code>from todus import FileType
 
 # 1. Subir la imagen
 with open("foto.jpg", "rb") as f:
@@ -89,61 +82,75 @@ client.send_image_message(
     file_name="foto.jpg",
     file_size=len(image_data),
     caption="Mi foto"
-)
-```
+)</code></pre>
 
-Escuchar mensajes entrantes
+<h3>Escuchar mensajes entrantes</h3>
 
-```python
-def on_message(msg):
+<pre><code>def on_message(msg):
     if msg.get("body"):
         print(f"{msg['from']}: {msg['body']}")
 
-client.listen_messages(on_message)   # bucle infinito
-```
+client.listen_messages(on_message)   # bucle infinito</code></pre>
 
----
+<hr>
 
-🤖 Bot de Ejemplo
+<h2>🤖 Bot de Ejemplo</h2>
 
-En la carpeta examples/ encontrarás un bot funcional con comandos:
+<p>En la carpeta <code>examples/</code> encontrarás un bot funcional con comandos:</p>
 
-Comando Respuesta
-/start Mensaje de bienvenida con lista de comandos
-/info Información sobre la librería
-/ping "pong"
+<table>
+  <thead>
+    <tr>
+      <th>Comando</th>
+      <th>Respuesta</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><code>/start</code></td><td>Mensaje de bienvenida con lista de comandos</td></tr>
+    <tr><td><code>/info</code></td><td>Información sobre la librería</td></tr>
+    <tr><td><code>/ping</code></td><td><code>pong</code></td></tr>
+  </tbody>
+</table>
 
-Ejecútalo con:
+<p>Ejecútalo con:</p>
 
-```bash
-export TODUS_PHONE=535xxxxxxx
+<pre><code>export TODUS_PHONE=535xxxxxxx
 export TODUS_AUTH_TOKEN=token_largo_de_96_caracteres
-python examples/bot.py
-```
+python examples/bot.py</code></pre>
 
----
+<hr>
 
-📡 Tipos de Mensaje Soportados
+<h2>📡 Tipos de Mensaje Soportados</h2>
 
-Tipo Método (ToDusClient2)
-Texto send_message(to, body)
-Imagen send_image_message(to, url, file_name, file_size, ...)
-Video send_video_message(to, url, video_id, file_name, ...)
-Archivo send_file_message(to, url, file_type, ...)
-Sticker send_sticker_message(to, sticker_id, ...)
-Contacto send_contact_message(to, contact_id, ...)
-Botones send_button_message(to, text, buttons)
-Editar edit_message(to, new_body, original_msg_id)
-Eliminar delete_message(to, message_id)
+<p>La librería soporta los siguientes tipos de mensaje:</p>
 
-Auto-detección de destino: si el to no es un número cubano (10 dígitos empezando por 53), se asume que es un group_id y el mensaje se envía al grupo automáticamente.
+<table>
+  <thead>
+    <tr>
+      <th>Tipo</th>
+      <th>Método (ToDusClient2)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>Texto</td><td><code>send_message(to, body)</code></td></tr>
+    <tr><td>Imagen</td><td><code>send_image_message(to, url, file_name, file_size, ...)</code></td></tr>
+    <tr><td>Video</td><td><code>send_video_message(to, url, video_id, file_name, ...)</code></td></tr>
+    <tr><td>Archivo</td><td><code>send_file_message(to, url, file_type, ...)</code></td></tr>
+    <tr><td>Sticker</td><td><code>send_sticker_message(to, sticker_id, ...)</code></td></tr>
+    <tr><td>Contacto</td><td><code>send_contact_message(to, contact_id, ...)</code></td></tr>
+    <tr><td>Botones</td><td><code>send_button_message(to, text, buttons)</code></td></tr>
+    <tr><td>Editar</td><td><code>edit_message(to, new_body, original_msg_id)</code></td></tr>
+    <tr><td>Eliminar</td><td><code>delete_message(to, message_id)</code></td></tr>
+  </tbody>
+</table>
 
----
+<p><strong>Auto-detección de destino:</strong> si el <code>to</code> no es un número cubano (10 dígitos empezando por 53), se asume que es un <code>group_id</code> y el mensaje se envía al grupo automáticamente.</p>
 
-👥 Grupos MUC Light
+<hr>
 
-```python
-# Unirse a un grupo
+<h2>👥 Grupos MUC Light</h2>
+
+<pre><code># Unirse a un grupo
 client.groups.join("mi-grupo-id")
 
 # Enviar mensaje al grupo (auto-detectado)
@@ -156,41 +163,46 @@ def on_group_msg(msg):
 client.groups.on_group_message("mi-grupo-id", on_group_msg)
 
 # Salir del grupo
-client.groups.leave("mi-grupo-id")
-```
+client.groups.leave("mi-grupo-id")</code></pre>
 
----
+<hr>
 
-📤 Subir y Descargar Archivos
+<h2>📤 Subir y Descargar Archivos</h2>
 
-```python
-# Subir cualquier archivo
+<pre><code># Subir cualquier archivo
 with open("documento.pdf", "rb") as f:
     url = client.upload_file(f.read(), FileType.FILE)
 
 # Descargar a una carpeta
 size, path = client.download_file_to_folder(url, "./descargas")
-print(f"Descargado {size} bytes en {path}")
-```
+print(f"Descargado {size} bytes en {path}")</code></pre>
 
----
+<hr>
 
-⚠️ Excepciones
+<h2>⚠️ Excepciones</h2>
 
-Excepción Cuándo ocurre
-AuthenticationError Credenciales inválidas o falta autenticación
-TokenExpiredError El token JWT expiró (el cliente lo renueva automáticamente si usas ToDusClient2)
-ConnectionLostError Se perdió la conexión XMPP
-UploadError Error al subir/descargar archivo
-GroupError Error en operación de grupo
-ParseError Stanza malformada
+<table>
+  <thead>
+    <tr>
+      <th>Excepción</th>
+      <th>Cuándo ocurre</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><code>AuthenticationError</code></td><td>Credenciales inválidas o falta autenticación</td></tr>
+    <tr><td><code>TokenExpiredError</code></td><td>El token JWT expiró (el cliente lo renueva automáticamente si usas ToDusClient2)</td></tr>
+    <tr><td><code>ConnectionLostError</code></td><td>Se perdió la conexión XMPP</td></tr>
+    <tr><td><code>UploadError</code></td><td>Error al subir/descargar archivo</td></tr>
+    <tr><td><code>GroupError</code></td><td>Error en operación de grupo</td></tr>
+    <tr><td><code>ParseError</code></td><td>Stanza malformada</td></tr>
+  </tbody>
+</table>
 
----
+<hr>
 
-🗂️ Estructura del Proyecto
+<h2>🗂️ Estructura del Proyecto</h2>
 
-```
-todus-lib/
+<pre><code>todus-lib/
 ├── todus/                  # Código fuente de la librería
 │   ├── __init__.py         # Exports principales
 │   ├── client.py           # ToDusClient y ToDusClient2
@@ -204,17 +216,11 @@ todus-lib/
 │   └── setup.py            # Configuración de setuptools
 ├── examples/               # Ejemplos de uso
 │   └── bot.py              # Bot con comandos
-└── README.md               # Este archivo
-```
+└── README.md               # Este archivo</code></pre>
 
----
+<hr>
 
-🔗 Recursos
+<h2>🔗 Recursos</h2>
 
-· ToDus oficial: https://web.todus.cu
-· Apklis: https://www.apklis.cu/application/cu.todus.android
----
-
-📄 Licencia
-
-MIT License
+- **ToDus oficial:** [ToDus](https://web.todus.cu)
+- **Apklis:** [Apklis](https://www.apklis.cu/application/cu.todus.android)
