@@ -29,6 +29,31 @@ from .types import FileType
 logger = logging.getLogger("todus")
 
 
+class _ProgressReader:
+    def __init__(self, data: bytes, progress_callback: Callable[[int, int], None]) -> None:
+        self.data = data
+        self.total = len(data)
+        self.offset = 0
+        self.progress_callback = progress_callback
+
+    def read(self, size: int = -1) -> bytes:
+        if self.offset >= self.total:
+            return b""
+
+        if size is None or size < 0:
+            chunk = self.data[self.offset:]
+            self.offset = self.total
+        else:
+            end = min(self.offset + size, self.total)
+            chunk = self.data[self.offset:end]
+            self.offset = end
+
+        if chunk and self.progress_callback:
+            self.progress_callback(self.offset, self.total)
+
+        return chunk
+
+
 class ToDusClient:
     """Cliente stateless para la API de ToDus."""
 
@@ -419,15 +444,18 @@ class ToDusClient:
 
         return ""
 
-    def upload_file(self, token: str, data: bytes, file_type: FileType = FileType.FILE) -> str:
+    def upload_file(self, token: str, data: bytes, file_type: FileType = FileType.FILE, progress_callback: Callable[[int, int], None] = None) -> str:
         up_url, down_url = self.reserve_upload_url(token, len(data), file_type)
+        upload_data = _ProgressReader(data, progress_callback) if progress_callback else data
         resp = requests.put(
             up_url,
-            data=data,
+            data=upload_data,
             headers={"Content-Length": str(len(data))},
             timeout=60,
         )
         resp.raise_for_status()
+        if progress_callback:
+            progress_callback(len(data), len(data))
         return down_url
 
     def download_file(self, token: str, url: str, path: str) -> int:
@@ -776,10 +804,10 @@ class ToDusClient2(ToDusClient):
             raise AuthenticationError("No autenticado")
         return super().get_real_download_url(self._token, url)
 
-    def upload_file(self, data: bytes, file_type: FileType = FileType.FILE) -> str:
+    def upload_file(self, data: bytes, file_type: FileType = FileType.FILE, progress_callback: Callable[[int, int], None] = None) -> str:
         if not self._token:
             raise AuthenticationError("No autenticado")
-        return super().upload_file(self._token, data, file_type)
+        return super().upload_file(self._token, data, file_type, progress_callback)
 
     def download_file(self, url: str, path: str) -> int:
         if not self._token:
