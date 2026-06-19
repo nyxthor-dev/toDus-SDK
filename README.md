@@ -5,7 +5,7 @@
 <ul>
   <li><strong>Versión:</strong> 1.3.0</li>
   <li><strong>Python:</strong> >= 3.8</li>
-  <li><strong>Autor:</strong> OrionWolf</li>
+  <li><strong>Autor:</strong> <a href="https://github.com/vm1008079-web" target="_blank" rel="noopener noreferrer">OrionWolf</a></li>
   <li><strong>Credits:</strong> <a href="https://github.com/ElJoker63" target="_blank" rel="noopener noreferrer">ElJoker63</a></li>
 </ul> 
 
