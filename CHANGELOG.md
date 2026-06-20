@@ -8,6 +8,14 @@ y este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 ## [1.5.2] - 2026-06-20
 
 ### Added
+- **Sistema de Mensajes Programados (Scheduler)**: Nueva funcionalidad para programar el envío de mensajes automáticos.
+  - `send_later(to, body, delay)`: Envía un mensaje después de un tiempo determinado (ej. 5 minutos).
+  - `schedule_daily(to, body, hour, minute)`: Envía un mensaje todos los días a una hora específica.
+  - `schedule_interval(to, body, interval)`: Envía un mensaje cada cierto intervalo de tiempo (ej. cada hora).
+  - `cancel_task(task_id)`: Cancela una tarea programada.
+  - `list_tasks()`: Lista todas las tareas programadas.
+  - `get_scheduler_stats()`: Obtiene estadísticas del scheduler (tareas pendientes, próxima ejecución, etc.).
+  - `stop_scheduler()`: Detiene el scheduler y libera el hilo.
 - **Verificación SSL configurable**: Nuevo parámetro `verify_ssl` en `ToDusClientBase` y `ToDusClient2` para activar/desactivar la verificación de certificados SSL. Por defecto `False` para mantener compatibilidad con versiones anteriores.
 - **Backoff exponencial con jitter**: Mejora en el método `listen_messages` para reconexiones inteligentes. Ahora los reintentos aumentan progresivamente (1s, 2s, 4s, 8s, 16s, 32s, máximo 60s) con un factor aleatorio del 0-30% para evitar el "efecto rebaño".
 
@@ -17,6 +25,7 @@ y este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 
 ### Fixed
 - **Reconexiones más eficientes**: Reemplazado el `time.sleep(15)` fijo por un sistema de backoff exponencial que reduce la carga del servidor en caídas prolongadas y acelera la reconexión en fallos leves.
+- **Eliminación de duplicación de código**: Los métodos de envío ahora son más mantenibles y fáciles de extender.
 
 ## [1.5.1] - 2024-06-20
 
