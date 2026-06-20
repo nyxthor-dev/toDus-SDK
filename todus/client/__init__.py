@@ -3,6 +3,7 @@
 import logging
 import socket
 import time
+import random
 from base64 import b64encode
 from typing import Callable
 
@@ -311,7 +312,7 @@ class ToDusClient2(ToDusClient):
         to_jid = util.build_jid(to_phone)
         return super().send_read_receipt(self._token, to_jid, msg_id)
 
-    # --- Recepción de mensajes (con soporte para grupos) ---
+    # --- Recepción de mensajes (con soporte para grupos y backoff exponencial) ---
 
     def listen_messages(self, callback: Callable[[dict], None]) -> None:
         if not self._token:
@@ -334,13 +335,33 @@ class ToDusClient2(ToDusClient):
 
             callback(msg)
 
+        attempt = 0
         while True:
             try:
                 super().listen_messages(self._token, group_aware_callback)
+                attempt = 0  # Conexión exitosa, reiniciar contador
             except TokenExpiredError:
+                logger.info("Token expirado, intentando renovar...")
                 self.login()
-            except (ConnectionLostError, OSError, socket.error):
-                time.sleep(15)
+                attempt = 0
+            except (ConnectionLostError, OSError, socket.error) as e:
+                # Backoff exponencial con jitter para evitar sobrecarga
+                # y efecto rebaño
+                base_wait = min(60, 2 ** attempt)  # Máximo 60 segundos
+                jitter = random.uniform(0, 0.3)    # +0-30% aleatorio
+                wait_time = base_wait * (1 + jitter)
+                
+                logger.warning(
+                    f"Error de conexión: {e}. "
+                    f"Reintento #{attempt + 1} en {wait_time:.1f}s"
+                )
+                time.sleep(wait_time)
+                attempt += 1
+            except Exception as e:
+                # Cualquier otro error inesperado
+                logger.error(f"Error inesperado en listen_messages: {e}")
+                time.sleep(5)
+                attempt += 1
 
     # --- Archivos ---
 
