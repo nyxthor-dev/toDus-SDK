@@ -31,3 +31,19 @@
 </code></pre>
 
 <hr>
+
+<h2>🤝 Colaboradores Destacados</h2>
+
+<p>Agradecemos profundamente a todas las personas que han contribuido a hacer de toDus-API una librería mejor:</p>
+
+<ul>
+  <li><strong>OrionWolf</strong> — Creador y mantenedor principal</li>
+  <li><strong>ElJoker63</strong> — Desarrollador y colaborador activo</li>
+</ul>
+
+<p>¿Quieres aparecer aquí? ¡Las contribuciones son bienvenidas! Revisa nuestra <a href="CONTRIBUTING.md">guía de contribución</a> para empezar.</p>
+
+<hr>
+
+<p align="center">Desarrollado con ❤️ por <strong>OrionWolf</strong>.<br>
+<em>Créditos a OrionWolf por la creación y mantenimiento de esta librería.</em></p>
