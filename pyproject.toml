@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "toDus-API"
+dynamic = ["version"]
+description = "Cliente Python para ToDus (mensajería cubana) — chat, grupos, archivos, stickers y más"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [
+    {name = "ElJoker63"},
+]
+keywords = ["todus", "cuba", "xmpp", "messaging", "chat"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Communications :: Chat",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "requests",
+    "pysocks",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "build",
+    "twine",
+]
+
+[project.urls]
+Homepage = "https://github.com/ElJoker63/toDus-API"
+Repository = "https://github.com/ElJoker63/toDus-API"
+Issues = "https://github.com/ElJoker63/toDus-API/issues"
+Changelog = "https://github.com/ElJoker63/toDus-API/blob/main/CHANGELOG.md"
+
+[tool.setuptools.dynamic]
+version = {attr = "todus.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["todus*"]
+exclude = ["tests*", "examples*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
