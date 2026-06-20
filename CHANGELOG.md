@@ -5,6 +5,19 @@ Todos los cambios notables en este proyecto se documentan en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/),
 y este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.5.2] - 2026-06-20
+
+### Added
+- **Verificación SSL configurable**: Nuevo parámetro `verify_ssl` en `ToDusClientBase` y `ToDusClient2` para activar/desactivar la verificación de certificados SSL. Por defecto `False` para mantener compatibilidad con versiones anteriores.
+- **Backoff exponencial con jitter**: Mejora en el método `listen_messages` para reconexiones inteligentes. Ahora los reintentos aumentan progresivamente (1s, 2s, 4s, 8s, 16s, 32s, máximo 60s) con un factor aleatorio del 0-30% para evitar el "efecto rebaño".
+
+### Changed
+- **Refactorización de `ToDusClient2`**: Eliminada la duplicación de código en los métodos de envío (`send_message`, `send_file_message`, `send_image_message`, etc.) mediante el nuevo método interno `_send_to_target`. Centraliza la lógica de detección de grupos y autenticación.
+- **Seguridad SSL mejorada**: Ahora se puede activar la verificación de certificados en conexiones HTTP y XMPP, eliminando la dependencia de la desactivación forzosa de seguridad.
+
+### Fixed
+- **Reconexiones más eficientes**: Reemplazado el `time.sleep(15)` fijo por un sistema de backoff exponencial que reduce la carga del servidor en caídas prolongadas y acelera la reconexión en fallos leves.
+
 ## [1.5.1] - 2024-06-20
 
 ### Fixed
