@@ -5,10 +5,10 @@ import socket
 import hashlib
 from typing import Callable
 from .. import util, stanza, constants
-from ..errors import TokenExpiredError, ConnectionLostError
+from ..errors import TokenExpiredError, ConnectionLostError, ParseError
 from ..types import FileType
 
-logger = logging.getLogger("todus")
+logger = logging.getLogger(__name__)
 
 
 class ToDusMessageMixin:
@@ -20,104 +20,146 @@ class ToDusMessageMixin:
         """Envía mensaje de texto privado. Retorna el msg_id generado."""
         mid = util.generate_token(8)
         msg = stanza.message(to_jid, body, msg_id=mid)
-        with self._xmpp_session(token) as sock:
-            sock.send(msg.encode())
+        try:
+            with self._xmpp_session(token) as sock:
+                sock.send(msg.encode())
+        except Exception as e:
+            raise MessageError(f"Fallo al enviar mensaje a {to_jid}: {e}") from e
         return mid
 
     def edit_message(self, token: str, to_jid: str, new_body: str, original_msg_id: str) -> str:
         """Edita un mensaje privado."""
         edit_id = util.generate_token(8)
         msg = stanza.edit_message(to_jid, new_body, original_msg_id, edit_id=edit_id)
-        with self._xmpp_session(token) as sock:
-            sock.send(msg.encode())
+        try:
+            with self._xmpp_session(token) as sock:
+                sock.send(msg.encode())
+        except Exception as e:
+            raise MessageError(f"Fallo al editar mensaje {original_msg_id}: {e}") from e
         return edit_id
 
     def send_file_message(self, token: str, to_jid: str, url: str, file_type: FileType, caption: str = "", file_name: str = "", file_size: int = 0) -> str:
         mid = util.generate_token(8)
         msg = stanza.file_message(to_jid, url, int(file_type), caption, msg_id=mid, file_name=file_name, file_size=file_size)
-        with self._xmpp_session(token) as sock:
-            sock.send(msg.encode())
+        try:
+            with self._xmpp_session(token) as sock:
+                sock.send(msg.encode())
+        except Exception as e:
+            raise MessageError(f"Fallo al enviar archivo a {to_jid}: {e}") from e
         return mid
 
     def send_image_message(self, token: str, to_jid: str, url: str, file_name: str, file_size: int, width: int = 0, height: int = 0, thumbnail: str = "", caption: str = "") -> str:
         """Envía mensaje privado con imagen adjunta."""
         mid = util.generate_token(8)
         msg = stanza.image_message(to_jid, url, file_name, file_size, width, height, thumbnail, caption, msg_id=mid)
-        with self._xmpp_session(token) as sock:
-            sock.send(msg.encode())
+        try:
+            with self._xmpp_session(token) as sock:
+                sock.send(msg.encode())
+        except Exception as e:
+            raise MessageError(f"Fallo al enviar imagen a {to_jid}: {e}") from e
         return mid
 
     def send_image_message_simple(self, token: str, to_jid: str, url: str, file_name: str, file_size: int, msg_id: str = "") -> str:
         """Envía mensaje privado con imagen SIN metadata."""
         mid = msg_id or util.generate_token(8)
         msg = stanza.image_message_simple(to_jid, url, file_name, file_size, msg_id=mid)
-        with self._xmpp_session(token) as sock:
-            sock.send(msg.encode())
+        try:
+            with self._xmpp_session(token) as sock:
+                sock.send(msg.encode())
+        except Exception as e:
+            raise MessageError(f"Fallo al enviar imagen simple a {to_jid}: {e}") from e
         return mid
 
     def send_button_message(self, token: str, to_jid: str, text: str, buttons: list[dict]) -> str:
         """Envía mensaje con botones interactivos."""
         mid = util.generate_token(8)
         msg = stanza.button_message(to_jid, text, buttons, msg_id=mid)
-        with self._xmpp_session(token) as sock:
-            sock.send(msg.encode())
+        try:
+            with self._xmpp_session(token) as sock:
+                sock.send(msg.encode())
+        except Exception as e:
+            raise MessageError(f"Fallo al enviar botones a {to_jid}: {e}") from e
         return mid
 
     def send_contact_message(self, token: str, to_jid: str, contact_id: str, contact_name: str, contact_phone: str) -> str:
         mid = util.generate_token(8)
         msg = stanza.contact_message(to_jid, contact_id, contact_name, contact_phone, msg_id=mid)
-        with self._xmpp_session(token) as sock:
-            sock.send(msg.encode())
+        try:
+            with self._xmpp_session(token) as sock:
+                sock.send(msg.encode())
+        except Exception as e:
+            raise MessageError(f"Fallo al enviar contacto a {to_jid}: {e}") from e
         return mid
 
     def send_sticker_message(self, token: str, to_jid: str, sticker_id: str, sticker_name: str, sticker_pack: str, sticker_hash: str) -> str:
         mid = util.generate_token(8)
         msg = stanza.sticker_message(to_jid, sticker_id, sticker_name, sticker_pack, sticker_hash, msg_id=mid)
-        with self._xmpp_session(token) as sock:
-            sock.send(msg.encode())
+        try:
+            with self._xmpp_session(token) as sock:
+                sock.send(msg.encode())
+        except Exception as e:
+            raise MessageError(f"Fallo al enviar sticker a {to_jid}: {e}") from e
         return mid
 
     def send_video_message(self, token: str, to_jid: str, url: str, video_id: str, file_name: str, file_size: int, duration: int, width: int, height: int, thumbnail: str, info_text: str = "") -> str:
         mid = hashlib.md5(util.generate_token(16).encode()).hexdigest()
         msg = stanza.video_message(to_jid, url, video_id, file_name, file_size, duration, width, height, thumbnail, msg_id=mid, info_text=info_text)
-        with self._xmpp_session(token) as sock:
-            sock.send(msg.encode())
+        try:
+            with self._xmpp_session(token) as sock:
+                sock.send(msg.encode())
+        except Exception as e:
+            raise MessageError(f"Fallo al enviar video a {to_jid}: {e}") from e
         return mid
 
     def send_location_message(self, token: str, to_jid: str, lat: float, lon: float, zoom: float = 11.0, text: str = "") -> str:
         """Envía un mensaje con ubicación adjunta."""
         mid = util.generate_token(8)
         msg = stanza.location_message(to_jid, lat, lon, zoom, text, msg_id=mid)
-        with self._xmpp_session(token) as sock:
-            sock.send(msg.encode())
+        try:
+            with self._xmpp_session(token) as sock:
+                sock.send(msg.encode())
+        except Exception as e:
+            raise MessageError(f"Fallo al enviar ubicación a {to_jid}: {e}") from e
         return mid
 
     def send_event_message(self, token: str, to_jid: str, title: str, start: int, end: int, all_day: bool, ics_data: str, event_id: str = "") -> str:
         """Envía un mensaje con evento/calendario adjunto."""
         mid = util.generate_token(8)
         msg = stanza.event_message(to_jid, event_id, title, start, end, all_day, ics_data, msg_id=mid)
-        with self._xmpp_session(token) as sock:
-            sock.send(msg.encode())
+        try:
+            with self._xmpp_session(token) as sock:
+                sock.send(msg.encode())
+        except Exception as e:
+            raise MessageError(f"Fallo al enviar evento a {to_jid}: {e}") from e
         return mid
 
     def send_chat_state(self, token: str, to_jid: str, state: str) -> None:
         st = stanza.chat_state(to_jid, state)
-        with self._xmpp_session(token) as sock:
-            sock.send(st.encode())
+        try:
+            with self._xmpp_session(token) as sock:
+                sock.send(st.encode())
+        except Exception as e:
+            raise MessageError(f"Fallo al enviar estado de chat a {to_jid}: {e}") from e
 
     def delete_message(self, token: str, to_jid: str, message_id: str, msg_type: str = "c", body: str = "", media_xml: str = "") -> str:
         """Elimina un mensaje propio."""
         msg = stanza.delete_message(to_jid, message_id, msg_id=message_id, msg_type=msg_type, body=body, media_xml=media_xml)
-        with self._xmpp_session(token) as sock:
-            sock.send(msg.encode())
+        try:
+            with self._xmpp_session(token) as sock:
+                sock.send(msg.encode())
+        except Exception as e:
+            raise MessageError(f"Fallo al eliminar mensaje {message_id}: {e}") from e
         return message_id
 
     def send_read_receipt(self, token: str, to_jid: str, msg_id: str, msg_type: str = "c") -> str:
         """Envía una confirmación de lectura (read receipt)."""
         rid = util.generate_token(8)
         msg = stanza.read_receipt(to_jid, msg_id, receipt_id=rid, msg_type=msg_type)
-        with self._xmpp_session(token) as sock:
-            sock.send(msg.encode())
+        try:
+            with self._xmpp_session(token) as sock:
+                sock.send(msg.encode())
+        except Exception as e:
+            raise MessageError(f"Fallo al enviar receipt de lectura para {msg_id}: {e}") from e
         return rid
 
     # --- Recepción de mensajes ---
@@ -129,7 +171,8 @@ class ToDusMessageMixin:
                     self._listen_loop(sock, callback)
             except TokenExpiredError:
                 raise
-            except (ConnectionLostError, OSError, socket.error):
+            except (ConnectionLostError, OSError, socket.error) as e:
+                logger.error(f"Conexión perdida, reconectando en 15s: {e}")
                 time.sleep(15)
 
     def _listen_loop(self, sock, callback: Callable[[dict], None]) -> None:
@@ -148,15 +191,22 @@ class ToDusMessageMixin:
                 try:
                     response = self._recv_all(sock)
                 except OSError as e:
-                    raise ConnectionLostError(e)
+                    raise ConnectionLostError(f"Error de socket: {e}") from e
 
                 if response is None:
-                    raise ConnectionLostError("Servidor cerro conexion")
+                    raise ConnectionLostError("Servidor cerró conexión")
 
                 if response == "":
                     continue
 
-                stanzas = self._xml_parser.feed(response)
+                try:
+                    stanzas = self._xml_parser.feed(response)
+                except ParseError as e:
+                    logger.error(f"Error parseando stanzas: {e}")
+                    continue
+                except Exception as e:
+                    logger.error(f"Error inesperado al parsear: {e}")
+                    continue
 
                 for msg in stanzas:
                     is_content = (
@@ -176,8 +226,8 @@ class ToDusMessageMixin:
                             try:
                                 receipt = stanza.receipt(msg_from, msg_id)
                                 sock.send(receipt.encode())
-                            except Exception:
-                                pass
+                            except Exception as e:
+                                logger.warning(f"Fallo al enviar receipt para {msg_id}: {e}")
                     
                     if (
                         is_content
@@ -185,7 +235,10 @@ class ToDusMessageMixin:
                         or msg.get("receipt")
                         or msg.get("deleted")
                     ):
-                        callback(msg)
+                        try:
+                            callback(msg)
+                        except Exception as e:
+                            logger.error(f"Error en callback de mensaje: {e}")
 
         finally:
             stop_event.set()
@@ -198,5 +251,6 @@ class ToDusMessageMixin:
                 break
             try:
                 sock.send(stanza.ping(ping_id).encode())
-            except OSError:
+            except OSError as e:
+                logger.debug(f"Keepalive falló: {e}")
                 break

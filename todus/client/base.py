@@ -9,7 +9,7 @@ import requests
 from .. import constants, parser, stanza, util
 from ..errors import ConnectionLostError, TokenExpiredError
 
-logger = logging.getLogger("todus")
+logger = logging.getLogger(__name__)
 
 
 class ToDusClientBase:
@@ -57,8 +57,6 @@ class ToDusClientBase:
                 port = 1080
 
         return proxy_type, parsed.hostname, port, parsed.username, parsed.password
-
-    # --- XMPP Socket ---
 
     def _connect_xmpp(self) -> ssl.SSLSocket:
         if self.proxy:
@@ -156,28 +154,28 @@ class ToDusClientBase:
         while True:
             response = self._recv_all(sock)
             if response is None:
-                raise ConnectionLostError("Servidor cerro conexion durante handshake")
+                raise ConnectionLostError("Servidor cerró conexión durante handshake")
             if response == "":
                 continue
 
             if not self._process_handshake(response, sock, authstr, sid, state):
                 return
 
-    # --- Context Manager XMPP ---
-
     @contextmanager
     def _xmpp_session(self, token: str):
-        sock = self._connect_xmpp()
+        sock = None
         try:
+            sock = self._connect_xmpp()
             self._handshake(sock, token)
             sock.send(stanza.presence().encode())
             yield sock
         finally:
-            try:
-                sock.send(stanza.stream_close().encode())
-            except Exception:
-                pass
-            try:
-                sock.close()
-            except Exception:
-                pass
+            if sock:
+                try:
+                    sock.send(stanza.stream_close().encode())
+                except (OSError, socket.error) as e:
+                    logger.debug(f"Error al cerrar stream: {e}")
+                try:
+                    sock.close()
+                except (OSError, socket.error) as e:
+                    logger.debug(f"Error al cerrar socket: {e}")

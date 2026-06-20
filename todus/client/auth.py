@@ -1,5 +1,6 @@
 import string
 import re
+import requests
 from ..errors import AuthenticationError
 from .. import util
 
@@ -19,13 +20,16 @@ class ToDusAuthMixin:
             + bytes([0x12, 0x96, 0x01])
             + util.generate_token(150).encode()
         )
-        resp = self.session.post(
-            "https://auth.todus.cu/v2/auth/users.reserve",
-            data=data,
-            headers=headers,
-            timeout=30,
-        )
-        resp.raise_for_status()
+        try:
+            resp = self.session.post(
+                "https://auth.todus.cu/v2/auth/users.reserve",
+                data=data,
+                headers=headers,
+                timeout=30,
+            )
+            resp.raise_for_status()
+        except requests.RequestException as e:
+            raise AuthenticationError(f"Error al solicitar código: {e}") from e
 
     def validate_code(self, phone_number: str, code: str) -> str:
         headers = {
@@ -41,13 +45,17 @@ class ToDusAuthMixin:
             + bytes([0x1A, 0x06])
             + code.encode()
         )
-        resp = self.session.post(
-            "https://auth.todus.cu/v2/auth/users.register",
-            data=data,
-            headers=headers,
-            timeout=30,
-        )
-        resp.raise_for_status()
+        try:
+            resp = self.session.post(
+                "https://auth.todus.cu/v2/auth/users.register",
+                data=data,
+                headers=headers,
+                timeout=30,
+            )
+            resp.raise_for_status()
+        except requests.RequestException as e:
+            raise AuthenticationError(f"Error al validar código: {e}") from e
+
         content = resp.content
         try:
             if b"`" in content:
@@ -77,13 +85,16 @@ class ToDusAuthMixin:
             + bytes([0x1A, 0x05])
             + self.version_code.encode()
         )
-        resp = self.session.post(
-            "https://auth.todus.cu/v2/auth/token",
-            data=data,
-            headers=headers,
-            timeout=30,
-        )
-        if resp.status_code == 403:
-            raise AuthenticationError("Credenciales invalidas")
-        resp.raise_for_status()
+        try:
+            resp = self.session.post(
+                "https://auth.todus.cu/v2/auth/token",
+                data=data,
+                headers=headers,
+                timeout=30,
+            )
+            if resp.status_code == 403:
+                raise AuthenticationError("Credenciales inválidas")
+            resp.raise_for_status()
+        except requests.RequestException as e:
+            raise AuthenticationError(f"Error de login: {e}") from e
         return "".join([c for c in resp.text if c in string.printable])
