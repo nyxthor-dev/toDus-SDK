@@ -41,3 +41,4 @@ sms.py
 send_delete_example.py
 *.txt
 raw_sniff_*.txt
+/.venv_test
