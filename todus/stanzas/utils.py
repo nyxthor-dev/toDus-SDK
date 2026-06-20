@@ -15,6 +15,13 @@ def iq(type_: str, iq_id: str, payload: str = "", to: str = "") -> str:
     return f"<iq i='{iq_id}' t='{type_}'{to_attr}>{payload}</iq>"
 
 
+def build_iq(type_: str, to: str, query: str) -> str:
+    """Helper para construir iq con id autogenerado."""
+    iq_id = util.generate_token(12)
+    return iq(type_, iq_id, query, to)
+
+
+
 def ping(ping_id: str) -> str:
     """XMPP ping (urn:xmpp:ping)."""
     return f"<iq i='{ping_id}' t='get'><ping xmlns='urn:xmpp:ping'/></iq>"

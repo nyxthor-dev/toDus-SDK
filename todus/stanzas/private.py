@@ -148,7 +148,7 @@ def video_message(to: str, url: str, video_id: str, file_name: str, file_size: i
     body_tag = "<b/>" if not info_text else f"<b>{util.escape_xml(info_text)}</b>"
 
     return (
-        f"<m xml:lang='en' o='{to}' t='{msg_type}' i='{mid}'>"
+        f"<m to='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
         f"<k xmlns='x8'/>"
         f"<video xmlns='video:n' i='{video_id}' mi='{mid}' url='{url_esc}' s='{file_size}' h='' d='{duration}' n='{name_esc}' w='{width}' he='{height}' tnail='{thumbnail}'/>"
         f"{body_tag}"
