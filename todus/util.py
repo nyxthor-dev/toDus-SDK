@@ -6,6 +6,11 @@ import secrets
 import string
 from base64 import b64decode
 from datetime import datetime
+from typing import Tuple, Optional, Literal
+
+# Constantes XMPP
+XMPP_HOST = "im.todus.cu"
+MUCLIGHT_HOST = "muclight.im.todus.cu"
 
 
 def generate_token(length: int = 8) -> str:
@@ -25,7 +30,7 @@ def normalize_phone(phone_number: str) -> str:
 
 def build_jid(phone_number: str) -> str:
     """Construye JID ToDus desde número de teléfono."""
-    return normalize_phone(phone_number) + "@im.todus.cu"
+    return normalize_phone(phone_number) + "@" + XMPP_HOST
 
 
 def parse_jid(jid: str) -> tuple[str, str]:
@@ -175,3 +180,151 @@ def sanitize_filename(filename: str, file_type: int = 0) -> str:
         
     return f"{stem_clean}{ext}"
 
+
+# ================================================================
+#  NUEVAS FUNCIONES PARA RESOLUCIÓN AUTOMÁTICA DE JIDs
+# ================================================================
+
+def is_phone_number(text: str) -> bool:
+    """Detecta si el texto es un número de teléfono cubano (10 dígitos empezando por 53)."""
+    if not text:
+        return False
+    cleaned = re.sub(r'[\s\+\(\)-]', '', text)
+    return bool(re.match(r'^53\d{8}$', cleaned))
+
+
+def is_full_jid(text: str) -> bool:
+    """Detecta si el texto es un JID completo (contiene @ y un dominio conocido)."""
+    if not text:
+        return False
+    return bool(re.search(r'@(im\.todus\.cu|muclight\.im\.todus\.cu)', text))
+
+
+def is_group_id(text: str) -> bool:
+    """Detecta si el texto parece un ID de grupo (no es número, no tiene @)."""
+    if not text:
+        return False
+    # Si es número de teléfono, no es grupo
+    if is_phone_number(text):
+        return False
+    # Si tiene @, ya lo manejamos en is_full_jid
+    if '@' in text:
+        return False
+    return True
+
+
+def parse_jid_parts(jid: str) -> Tuple[str, Optional[str], Optional[str]]:
+    """
+    Parsea un JID completo y devuelve (local, domain, resource).
+    Ejemplo: "usuario@im.todus.cu/resource" → ("usuario", "im.todus.cu", "resource")
+    """
+    resource = None
+    if '/' in jid:
+        jid, resource = jid.split('/', 1)
+    
+    if '@' not in jid:
+        return jid, None, resource
+    
+    local, domain = jid.split('@', 1)
+    return local, domain, resource
+
+
+def resolve_target(target: str) -> dict:
+    """
+    Resuelve automáticamente cualquier formato de destino.
+    Devuelve un dict con:
+        - type: 'private' o 'group' o 'unknown'
+        - jid: JID completo para usar en la stanza
+        - phone: número de teléfono (si es privado)
+        - group_id: ID del grupo (si es grupo)
+        - resource: recurso (si se especificó)
+        - raw: entrada original
+    """
+    if not target:
+        return {
+            'type': 'unknown',
+            'jid': '',
+            'phone': None,
+            'group_id': None,
+            'resource': None,
+            'raw': target,
+        }
+    
+    raw = target.strip()
+    
+    # 1. Si es JID completo
+    if is_full_jid(raw):
+        local, domain, resource = parse_jid_parts(raw)
+        if domain == MUCLIGHT_HOST:
+            return {
+                'type': 'group',
+                'jid': raw,
+                'group_id': local,
+                'resource': resource,
+                'phone': None,
+                'raw': raw,
+            }
+        elif domain == XMPP_HOST:
+            return {
+                'type': 'private',
+                'jid': raw,
+                'phone': local,
+                'resource': resource,
+                'group_id': None,
+                'raw': raw,
+            }
+    
+    # 2. Si es número de teléfono (con o sin +, con espacios, guiones)
+    if is_phone_number(raw):
+        phone = normalize_phone(raw)
+        jid = f"{phone}@{XMPP_HOST}"
+        return {
+            'type': 'private',
+            'jid': jid,
+            'phone': phone,
+            'resource': None,
+            'group_id': None,
+            'raw': raw,
+        }
+    
+    # 3. Si es ID de grupo (sin @)
+    if is_group_id(raw):
+        jid = f"{raw}@{MUCLIGHT_HOST}"
+        return {
+            'type': 'group',
+            'jid': jid,
+            'group_id': raw,
+            'resource': None,
+            'phone': None,
+            'raw': raw,
+        }
+    
+    # 4. Si no se pudo resolver, devolver como está (fallback)
+    return {
+        'type': 'unknown',
+        'jid': raw,
+        'phone': None,
+        'group_id': None,
+        'resource': None,
+        'raw': raw,
+    }
+
+
+# Cache para nombres de contacto (opcional)
+_contact_cache = {}
+
+
+def cache_contact(phone: str, name: str) -> None:
+    """Guarda un nombre de contacto en caché."""
+    if phone and name:
+        _contact_cache[phone] = name
+
+
+def get_cached_contact(phone: str) -> Optional[str]:
+    """Obtiene un nombre de contacto de la caché."""
+    return _contact_cache.get(phone)
+
+
+def clear_contact_cache() -> None:
+    """Limpia la caché de contactos."""
+    _contact_cache.clear()

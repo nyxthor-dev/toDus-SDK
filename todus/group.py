@@ -16,7 +16,7 @@ from .types import FileType
 if TYPE_CHECKING:
     from .client import ToDusClient2
 
-logger = logging.getLogger("todus.groups")
+logger = logging.getLogger(__name__)
 
 
 class GroupRole:
@@ -48,6 +48,14 @@ class GroupClient:
     def _get_group_jid(self, group_id: str) -> str:
         """Construye JID del grupo."""
         return f"{group_id}@muclight.im.todus.cu"
+    
+    # ================================================================
+    #  NUEVO MÉTODO PÚBLICO PARA OBTENER JID
+    # ================================================================
+    
+    def get_group_jid(self, group_id: str) -> str:
+        """Devuelve el JID completo del grupo."""
+        return self._get_group_jid(group_id)
     
     def _generate_msg_id(self) -> str:
         """Genera ID de mensaje en formato hex MD5 de 32 chars."""
@@ -95,7 +103,7 @@ class GroupClient:
                 return True
         except Exception as e:
             logger.error(f"Error uniéndose al grupo {group_id}: {e}")
-            raise GroupError(f"No se pudo unir al grupo: {e}")
+            raise GroupError(f"No se pudo unir al grupo: {e}") from e
     
     def leave(self, group_id: str) -> bool:
         """Salir de un grupo."""
