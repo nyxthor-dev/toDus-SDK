@@ -45,7 +45,7 @@ class ToDusClient(
 
 
 class ToDusClient2(ToDusClient):
-    """Cliente stateful con auto-login, auto-reconnect, soporte para grupos, scheduler y auto-detección de destino."""
+    """Cliente stateful con auto-login, auto-reconnect, soporte para grupos, y auto-detección de destino."""
 
     def __init__(
         self,
@@ -60,7 +60,6 @@ class ToDusClient2(ToDusClient):
         self.password = password.strip() if password else ""
         self._token = ""
         self._group_client = None
-        self._scheduler = None  # <--- Para el sistema de mensajes programados
 
     def _authstr_from_token(self, token: str) -> tuple[str, bytes]:
         phone, authstr = super()._authstr_from_token(token)
@@ -96,14 +95,6 @@ class ToDusClient2(ToDusClient):
             self._group_client = GroupClient(self)
         return self._group_client
 
-    @property
-    def scheduler(self):
-        """Acceso al scheduler de mensajes programados."""
-        if self._scheduler is None:
-            from ..scheduler import ToDusScheduler
-            self._scheduler = ToDusScheduler(self)
-            self._scheduler.start()
-        return self._scheduler
 
     def login(self) -> None:
         if not self.password:
@@ -420,44 +411,3 @@ class ToDusClient2(ToDusClient):
             with open(thumbnail_path, "rb") as f:
                 thumbnail_data = f.read()
         return self.upload_avatar(image_data, thumbnail_data)
-
-    # --- Mensajes Programados (Scheduler) ---
-
-    def send_later(self, to_phone: str, body: str, delay: float,
-                   callback: Callable = None, *args, **kwargs) -> str:
-        """Programa un mensaje para enviarse después de un delay (segundos)."""
-        return self.scheduler.send_later(to_phone, body, delay, callback, *args, **kwargs)
-
-    def schedule_daily(self, to_phone: str, body: str,
-                       hour: int = 0, minute: int = 0,
-                       max_runs: int = None,
-                       callback: Callable = None,
-                       *args, **kwargs) -> str:
-        """Programa un mensaje diario a una hora específica."""
-        return self.scheduler.schedule_daily(to_phone, body, hour, minute, max_runs, callback, *args, **kwargs)
-
-    def schedule_interval(self, to_phone: str, body: str,
-                          interval: float,
-                          max_runs: int = None,
-                          callback: Callable = None,
-                          *args, **kwargs) -> str:
-        """Programa un mensaje que se repite cada intervalo (segundos)."""
-        return self.scheduler.schedule_interval(to_phone, body, interval, max_runs, callback, *args, **kwargs)
-
-    def cancel_task(self, task_id: str) -> bool:
-        """Cancela una tarea programada por su ID."""
-        return self.scheduler.cancel_task(task_id)
-
-    def list_tasks(self) -> list:
-        """Lista todas las tareas programadas."""
-        return self.scheduler.list_tasks()
-
-    def stop_scheduler(self):
-        """Detiene el scheduler y libera el hilo."""
-        if self._scheduler:
-            self._scheduler.stop()
-            self._scheduler = None
-
-    def get_scheduler_stats(self) -> dict:
-        """Obtiene estadísticas del scheduler."""
-        return self.scheduler.get_stats()

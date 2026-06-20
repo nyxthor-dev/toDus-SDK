@@ -18,9 +18,6 @@ from .errors import (
 from .util import normalize_phone, build_jid, generate_token, jwt_decode_payload, timestamp_ms, format_size
 from .parser import IncrementalParser, parse_tdack
 
-# Importar componentes del scheduler
-from .scheduler import ToDusScheduler, ScheduledTask, ScheduleType
-
 __version__ = "1.5.2"  # Actualizado para reflejar los cambios
 
 __all__ = [
@@ -52,9 +49,5 @@ __all__ = [
     "timestamp_ms",
     "format_size",
     "IncrementalParser",
-    "parse_tdack",
-    # Scheduler
-    "ToDusScheduler",
-    "ScheduledTask",
-    "ScheduleType",
+    "parse_tdack"
 ]

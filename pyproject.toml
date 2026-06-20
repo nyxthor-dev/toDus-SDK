@@ -10,7 +10,7 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
 authors = [
-    {name = "ElJoker63"},
+    {name = "OrionWolf"},
 ]
 keywords = ["todus", "cuba", "xmpp", "messaging", "chat"]
 classifiers = [
