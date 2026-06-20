@@ -46,8 +46,15 @@ class ToDusClient(
 class ToDusClient2(ToDusClient):
     """Cliente stateful con auto-login, auto-reconnect, soporte para grupos y auto-detección de destino."""
 
-    def __init__(self, phone_number: str, password: str = "", proxy: str | None = None, **kwargs) -> None:
-        super().__init__(proxy=proxy, **kwargs)
+    def __init__(
+        self,
+        phone_number: str,
+        password: str = "",
+        proxy: str | None = None,
+        verify_ssl: bool = False,
+        **kwargs
+    ) -> None:
+        super().__init__(proxy=proxy, verify_ssl=verify_ssl, **kwargs)
         self.phone_number = util.normalize_phone(phone_number) if phone_number else ""
         self.password = password.strip() if password else ""
         self._token = ""
