@@ -6,6 +6,7 @@ import string
 from base64 import b64encode
 from contextlib import contextmanager
 import requests
+import urllib3
 from .. import constants, parser, stanza, util
 from ..errors import ConnectionLostError, TokenExpiredError
 
@@ -20,15 +21,19 @@ class ToDusClientBase:
         version_name: str = constants.AUTH_VERSION_NAME,
         version_code: str = constants.AUTH_VERSION_CODE,
         proxy: str | None = None,
+        verify_ssl: bool = False,
     ) -> None:
         self.version_name = version_name
         self.version_code = version_code
         self.proxy = proxy
+        self.verify_ssl = verify_ssl
         self.session = requests.Session()
         self.session.headers.update({"Accept-Encoding": "gzip"})
-        self.session.verify = False  # <-- AGREGAR ESTA LÍNEA para omitir verificación estricta de SSL en las URLs de ToDus
-        import urllib3
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        self.session.verify = verify_ssl
+
+        if not verify_ssl:
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
         if self.proxy:
             self.session.proxies = {
                 "http": self.proxy,
@@ -76,8 +81,8 @@ class ToDusClientBase:
         raw_sock.connect((constants.XMPP_HOST, constants.XMPP_PORT))
 
         ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE  # <-- AGREGAR ESTA LÍNEA para evitar fallos de certificados de ToDus/Cuba
+        ctx.check_hostname = self.verify_ssl
+        ctx.verify_mode = ssl.CERT_REQUIRED if self.verify_ssl else ssl.CERT_NONE
         sock = ctx.wrap_socket(raw_sock, server_hostname=constants.XMPP_HOST)
         sock.send(stanza.stream_open().encode())
         return sock
