@@ -9,7 +9,7 @@ import requests
 from .. import constants, parser, stanza, util
 from ..errors import ConnectionLostError, TokenExpiredError
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("todus")
 
 
 class ToDusClientBase:
@@ -26,6 +26,9 @@ class ToDusClientBase:
         self.proxy = proxy
         self.session = requests.Session()
         self.session.headers.update({"Accept-Encoding": "gzip"})
+        self.session.verify = False  # <-- AGREGAR ESTA LÍNEA para omitir verificación estricta de SSL en las URLs de ToDus
+        import urllib3
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         if self.proxy:
             self.session.proxies = {
                 "http": self.proxy,
@@ -58,6 +61,8 @@ class ToDusClientBase:
 
         return proxy_type, parsed.hostname, port, parsed.username, parsed.password
 
+    # --- XMPP Socket ---
+
     def _connect_xmpp(self) -> ssl.SSLSocket:
         if self.proxy:
             import socks
@@ -72,6 +77,7 @@ class ToDusClientBase:
 
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE  # <-- AGREGAR ESTA LÍNEA para evitar fallos de certificados de ToDus/Cuba
         sock = ctx.wrap_socket(raw_sock, server_hostname=constants.XMPP_HOST)
         sock.send(stanza.stream_open().encode())
         return sock
@@ -154,28 +160,28 @@ class ToDusClientBase:
         while True:
             response = self._recv_all(sock)
             if response is None:
-                raise ConnectionLostError("Servidor cerró conexión durante handshake")
+                raise ConnectionLostError("Servidor cerro conexion durante handshake")
             if response == "":
                 continue
 
             if not self._process_handshake(response, sock, authstr, sid, state):
                 return
 
+    # --- Context Manager XMPP ---
+
     @contextmanager
     def _xmpp_session(self, token: str):
-        sock = None
+        sock = self._connect_xmpp()
         try:
-            sock = self._connect_xmpp()
             self._handshake(sock, token)
             sock.send(stanza.presence().encode())
             yield sock
         finally:
-            if sock:
-                try:
-                    sock.send(stanza.stream_close().encode())
-                except (OSError, socket.error) as e:
-                    logger.debug(f"Error al cerrar stream: {e}")
-                try:
-                    sock.close()
-                except (OSError, socket.error) as e:
-                    logger.debug(f"Error al cerrar socket: {e}")
+            try:
+                sock.send(stanza.stream_close().encode())
+            except Exception:
+                pass
+            try:
+                sock.close()
+            except Exception:
+                pass
