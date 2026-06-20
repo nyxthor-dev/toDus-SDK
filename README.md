@@ -15,17 +15,19 @@
   <a href="https://vm1008079-web.github.io/toDus-API"><b>📖 LEER LA DOCUMENTACIÓN COMPLETA AQUÍ 📖</b></a>
 </p>
 
----
+<hr>
 
-## ⚡ ¿Qué es toDus-API?
+<h2>⚡ ¿Qué es toDus-API?</h2>
 
-Es una librería moderna, asíncrona y orientada a eventos para interactuar con la red de ToDus. Te permite crear bots interactivos, manejar grupos y canales, enviar contenido multimedia y ver o publicar historias, todo usando Python puro.
+<p>Es una librería moderna, asíncrona y orientada a eventos para interactuar con la red de ToDus. Te permite crear bots interactivos, manejar grupos y canales, enviar contenido multimedia y ver o publicar historias, todo usando Python puro.</p>
 
-**Cobertura del protocolo:** 100% de las funciones de la app oficial.
+<p><strong>Cobertura del protocolo:</strong> 100% de las funciones de la app oficial.</p>
 
----
+<hr>
 
-## 📦 Instalación
+<h2>📦 Instalación</h2>
 
-```bash
-pip install todus-API
+<pre><code>pip install todus-API
+</code></pre>
+
+<hr>
