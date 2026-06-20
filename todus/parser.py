@@ -1,11 +1,7 @@
 """Parser de stanzas XMPP/ToDus."""
 
 import re
-import logging
 from . import util
-from .errors import ParseError
-
-logger = logging.getLogger(__name__)
 
 
 def _attr(stanza: str, name: str) -> str:
@@ -86,6 +82,7 @@ def parse_todus_message(stanza: str) -> dict:
     result["is_group"] = msg_type == "gc"
 
     if result["is_group"]:
+        # Extraer ID del grupo del JID 'from' o 'to'
         from_jid = result.get("from", "")
         if "@muclight.im.todus.cu" in from_jid:
             parts = from_jid.split("/", 1)
@@ -129,7 +126,7 @@ def parse_todus_message(stanza: str) -> dict:
             result["file_size"] = 0
         result["file_hash"] = _attr(file_tag, "h")
 
-    # Imagen adjunta
+    # Imagen adjunta (formato </tr>)
     image_match = re.search(r"<image\b[^>]*>", stanza)
     if image_match:
         image_tag = image_match.group(0)
@@ -152,7 +149,7 @@ def parse_todus_message(stanza: str) -> dict:
             result["image_height"] = 0
         result["image_thumbnail"] = _attr(image_tag, "tnail")
 
-    # Contacto adjunto
+    # Contacto adjunto (formato <contact>)
     contact_match = re.search(r"<contact\b[^>]*>", stanza)
     if contact_match:
         contact_tag = contact_match.group(0)
@@ -161,7 +158,7 @@ def parse_todus_message(stanza: str) -> dict:
         result["contact_phone"] = _attr(contact_tag, "num")
         result["message_file_id"] = _attr(contact_tag, "mi")
 
-    # Sticker adjunto
+    # Sticker adjunto (formato <sticker>)
     sticker_match = re.search(r"<sticker\b[^>]*>", stanza)
     if sticker_match:
         sticker_tag = sticker_match.group(0)
@@ -171,7 +168,7 @@ def parse_todus_message(stanza: str) -> dict:
         result["sticker_hash"] = _attr(sticker_tag, "h")
         result["message_file_id"] = _attr(sticker_tag, "mi")
 
-    # Video adjunto
+    # Video adjunto (formato <video>)
     video_match = re.search(r"<video\b[^>]*>", stanza)
     if video_match:
         video_tag = video_match.group(0)
@@ -217,7 +214,7 @@ def parse_todus_message(stanza: str) -> dict:
         deleted_tag = deleted_match.group(0)
         result["deleted"] = _attr(deleted_tag, "mi") or _attr(deleted_tag, "i")
 
-    # Ubicación
+    # Ubicación adjunta (location)
     location_match = re.search(r"<location\b[^>]*>", stanza)
     if location_match:
         loc_tag = location_match.group(0)
@@ -237,7 +234,7 @@ def parse_todus_message(stanza: str) -> dict:
             result["location_zoom"] = 0.0
         result["location_text"] = util.unescape_xml(_attr(loc_tag, "t"))
 
-    # Evento
+    # Evento adjunto (event)
     event_match = re.search(r"<event\b[^>]*>", stanza)
     if event_match:
         event_tag = event_match.group(0)
@@ -258,13 +255,13 @@ def parse_todus_message(stanza: str) -> dict:
         if ics_match:
             result["event_ics"] = ics_match.group(1).strip()
 
-    # Estado de chat
+    # Estado de chat (csp/csc)
     if "<csp xmlns='uc1'/>" in stanza:
         result["chat_state"] = "composing"
     elif "<csc xmlns='uc1'/>" in stanza:
         result["chat_state"] = "paused"
 
-    # Recibos
+    # Recibos de entrega (dd) o lectura (rd)
     receipt_match = re.search(r"<dd\b[^>]*>", stanza)
     if receipt_match:
         receipt_tag = receipt_match.group(0)
@@ -322,11 +319,23 @@ def parse_iq(stanza: str) -> dict:
         match = re.search(r"<error[^>]*>(.*?)</error>", stanza, re.DOTALL)
         if match:
             result["error"] = match.group(1)
+            
+    # Extraer query interno si existe (útil para canales)
+    query_match = re.search(r"<query[^>]*>(.*?)</query>", stanza, re.DOTALL)
+    if query_match:
+        result["query"] = query_match.group(1)
+    else:
+        # En caso de que el query no tenga hijos (e.g. <query .../>) pero tenga atributos
+        query_self_closing = re.search(r"<query([^>]*?)/>", stanza)
+        if query_self_closing:
+            result["query_attrs"] = query_self_closing.group(1)
 
+    # Upload URLs
     if _attr(stanza, "put"):
         result["upload_url"] = _attr(stanza, "put").replace("amp;", "")
         result["download_url"] = _attr(stanza, "get").replace("amp;", "")
 
+    # Download URL
     if _attr(stanza, "du"):
         result["real_url"] = _attr(stanza, "du").replace("amp;", "")
 
@@ -385,9 +394,8 @@ class IncrementalParser:
                 try:
                     parsed = parser_fn(stanza_str)
                     stanzas.append(parsed)
-                except Exception as e:
-                    logger.error(f"Error parseando stanza: {stanza_str[:100]}... -> {e}")
-                    raise ParseError(f"Fallo al parsear stanza: {e}") from e
+                except Exception:
+                    pass
 
         # Limpiar buffer hasta el final de la última stanza procesada
         if stanzas:

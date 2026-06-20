@@ -18,7 +18,7 @@ from .errors import (
 from .util import normalize_phone, build_jid, generate_token, jwt_decode_payload, timestamp_ms, format_size
 from .parser import IncrementalParser, parse_tdack
 
-__version__ = "1.3.3"
+__version__ = "1.5.1"
 __all__ = [
     "ToDusClient",
     "ToDusClient2",
