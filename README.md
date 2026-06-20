@@ -46,4 +46,4 @@
 <hr>
 
 <p align="center">Desarrollado con ❤️ por <strong>OrionWolf</strong>.<br>
-<em>Créditos a OrionWolf por la creación y mantenimiento de esta librería.</em></p>
+<em>Créditos a ElJoker63 por el mantenimiento de esta librería.</em></p>
