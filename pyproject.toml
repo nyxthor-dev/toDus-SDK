@@ -35,6 +35,7 @@ dev = [
     "build",
     "twine",
     "mkdocs-material>=9.5.0",
+    "flake8>=6.0.0",
 ]
 
 [project.urls]
