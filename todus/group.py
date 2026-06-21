@@ -121,7 +121,7 @@ class GroupClient:
             logger.error(f"Error saliendo del grupo {group_id}: {e}")
             return False
     
-    def send_message(self, group_id: str, body: str, msg_id: str = "") -> str:
+    def send_message(self, group_id: str, body: str, msg_id: str = "", reply_to_id: str = "") -> str:
         """Enviar mensaje de texto a un grupo."""
         if not self.client.token:
             raise AuthenticationError("No autenticado")
@@ -129,7 +129,7 @@ class GroupClient:
         group_jid = self._get_group_jid(group_id)
         mid = msg_id or self._generate_msg_id()
         
-        msg = stanza.group_message(group_jid, body, msg_id=mid)
+        msg = stanza.group_message(group_jid, body, msg_id=mid, reply_to_id=reply_to_id)
         
         with self.client._xmpp_session(self.client.token) as sock:
             sock.send(msg.encode())
@@ -137,7 +137,7 @@ class GroupClient:
         return mid
     
     def send_file(self, group_id: str, url: str, file_name: str, 
-                  file_size: int, caption: str = "", msg_id: str = "") -> str:
+                  file_size: int, caption: str = "", msg_id: str = "", reply_to_id: str = "") -> str:
         """Enviar archivo a un grupo."""
         if not self.client.token:
             raise AuthenticationError("No autenticado")
@@ -145,7 +145,7 @@ class GroupClient:
         group_jid = self._get_group_jid(group_id)
         mid = msg_id or self._generate_msg_id()
         
-        msg = stanza.group_file_message(group_jid, url, file_name, file_size, caption, msg_id=mid)
+        msg = stanza.group_file_message(group_jid, url, file_name, file_size, caption, msg_id=mid, reply_to_id=reply_to_id)
         
         with self.client._xmpp_session(self.client.token) as sock:
             sock.send(msg.encode())
@@ -154,7 +154,7 @@ class GroupClient:
     
     def send_image(self, group_id: str, url: str, file_name: str,
                    file_size: int, width: int, height: int,
-                   thumbnail: str = "", caption: str = "", msg_id: str = "") -> str:
+                   thumbnail: str = "", caption: str = "", msg_id: str = "", reply_to_id: str = "") -> str:
         """Enviar imagen a un grupo."""
         if not self.client.token:
             raise AuthenticationError("No autenticado")
@@ -163,7 +163,7 @@ class GroupClient:
         mid = msg_id or self._generate_msg_id()
         
         msg = stanza.group_image_message(group_jid, url, file_name, file_size,
-                                          width, height, thumbnail, caption, msg_id=mid)
+                                          width, height, thumbnail, caption, msg_id=mid, reply_to_id=reply_to_id)
         
         with self.client._xmpp_session(self.client.token) as sock:
             sock.send(msg.encode())
@@ -173,7 +173,7 @@ class GroupClient:
     def send_video(self, group_id: str, url: str, video_id: str,
                    file_name: str, file_size: int, duration: int,
                    width: int, height: int, thumbnail: str,
-                   caption: str = "", msg_id: str = "") -> str:
+                   caption: str = "", msg_id: str = "", reply_to_id: str = "") -> str:
         """Enviar video a un grupo."""
         if not self.client.token:
             raise AuthenticationError("No autenticado")
@@ -183,7 +183,7 @@ class GroupClient:
         
         msg = stanza.group_video_message(group_jid, url, video_id, file_name,
                                           file_size, duration, width, height,
-                                          thumbnail, caption, msg_id=mid)
+                                          thumbnail, caption, msg_id=mid, reply_to_id=reply_to_id)
         
         with self.client._xmpp_session(self.client.token) as sock:
             sock.send(msg.encode())
@@ -192,7 +192,7 @@ class GroupClient:
     
     def send_sticker(self, group_id: str, sticker_id: str,
                      sticker_name: str, sticker_pack: str,
-                     sticker_hash: str, msg_id: str = "") -> str:
+                     sticker_hash: str, msg_id: str = "", reply_to_id: str = "") -> str:
         """Enviar sticker a un grupo."""
         if not self.client.token:
             raise AuthenticationError("No autenticado")
@@ -201,7 +201,7 @@ class GroupClient:
         mid = msg_id or self._generate_msg_id()
         
         msg = stanza.group_sticker_message(group_jid, sticker_id, sticker_name,
-                                            sticker_pack, sticker_hash, msg_id=mid)
+                                            sticker_pack, sticker_hash, msg_id=mid, reply_to_id=reply_to_id)
         
         with self.client._xmpp_session(self.client.token) as sock:
             sock.send(msg.encode())
@@ -210,7 +210,7 @@ class GroupClient:
     
     def send_contact(self, group_id: str, contact_id: str,
                      contact_name: str, contact_phone: str,
-                     msg_id: str = "") -> str:
+                     msg_id: str = "", reply_to_id: str = "") -> str:
         """Enviar contacto a un grupo."""
         if not self.client.token:
             raise AuthenticationError("No autenticado")
@@ -219,7 +219,7 @@ class GroupClient:
         mid = msg_id or self._generate_msg_id()
         
         msg = stanza.group_contact_message(group_jid, contact_id, contact_name,
-                                            contact_phone, msg_id=mid)
+                                            contact_phone, msg_id=mid, reply_to_id=reply_to_id)
         
         with self.client._xmpp_session(self.client.token) as sock:
             sock.send(msg.encode())
@@ -227,7 +227,7 @@ class GroupClient:
         return mid
 
     def send_location(self, group_id: str, lat: float, lon: float,
-                      zoom: float = 11.0, text: str = "", msg_id: str = "") -> str:
+                      zoom: float = 11.0, text: str = "", msg_id: str = "", reply_to_id: str = "") -> str:
         """Enviar ubicación a un grupo."""
         if not self.client.token:
             raise AuthenticationError("No autenticado")
@@ -235,7 +235,7 @@ class GroupClient:
         group_jid = self._get_group_jid(group_id)
         mid = msg_id or self._generate_msg_id()
         
-        msg = stanza.group_location_message(group_jid, lat, lon, zoom, text, msg_id=mid)
+        msg = stanza.group_location_message(group_jid, lat, lon, zoom, text, msg_id=mid, reply_to_id=reply_to_id)
         
         with self.client._xmpp_session(self.client.token) as sock:
             sock.send(msg.encode())
@@ -243,7 +243,7 @@ class GroupClient:
         return mid
 
     def send_event(self, group_id: str, title: str, start: int, end: int,
-                   all_day: bool, ics_data: str, event_id: str = "") -> str:
+                   all_day: bool, ics_data: str, event_id: str = "", reply_to_id: str = "") -> str:
         """Enviar evento a un grupo."""
         if not self.client.token:
             raise AuthenticationError("No autenticado")
@@ -251,7 +251,7 @@ class GroupClient:
         group_jid = self._get_group_jid(group_id)
         mid = self._generate_msg_id()
         
-        msg = stanza.group_event_message(group_jid, event_id, title, start, end, all_day, ics_data, msg_id=mid)
+        msg = stanza.group_event_message(group_jid, event_id, title, start, end, all_day, ics_data, msg_id=mid, reply_to_id=reply_to_id)
         
         with self.client._xmpp_session(self.client.token) as sock:
             sock.send(msg.encode())
@@ -379,7 +379,7 @@ class GroupClient:
         return self.set_member_role(group_id, user_phone, "none", msg_id=msg_id)
 
     def edit_message(self, group_id: str, new_body: str, 
-                     original_msg_id: str) -> str:
+                     original_msg_id: str, reply_to_id: str = "") -> str:
         """Editar un mensaje en grupo."""
         if not self.client.token:
             raise AuthenticationError("No autenticado")
@@ -387,14 +387,14 @@ class GroupClient:
         group_jid = self._get_group_jid(group_id)
         edit_id = self._generate_msg_id()
         
-        msg = stanza.group_edit_message(group_jid, new_body, original_msg_id, edit_id)
+        msg = stanza.group_edit_message(group_jid, new_body, original_msg_id, edit_id, reply_to_id=reply_to_id)
         
         with self.client._xmpp_session(self.client.token) as sock:
             sock.send(msg.encode())
         
         return edit_id
     
-    def delete_message(self, group_id: str, message_id: str, body: str = "", media_xml: str = "") -> str:
+    def delete_message(self, group_id: str, message_id: str, body: str = "", media_xml: str = "", reply_to_id: str = "") -> str:
         """Eliminar un mensaje en grupo."""
         if not self.client.token:
             raise AuthenticationError("No autenticado")
@@ -402,7 +402,7 @@ class GroupClient:
         group_jid = self._get_group_jid(group_id)
         mid = self._generate_msg_id()
         
-        msg = stanza.group_delete_message(group_jid, message_id, mid, body=body, media_xml=media_xml)
+        msg = stanza.group_delete_message(group_jid, message_id, mid, body=body, media_xml=media_xml, reply_to_id=reply_to_id)
         
         with self.client._xmpp_session(self.client.token) as sock:
             sock.send(msg.encode())
@@ -509,7 +509,7 @@ class GroupClient:
         return list(self._joined_groups)
     
     def upload_and_send_image(self, group_id: str, image_data: bytes,
-                              filename: str = "image.jpg", caption: str = "") -> str:
+                              filename: str = "image.jpg", caption: str = "", reply_to_id: str = "") -> str:
         """Sube una imagen y la envía al grupo en un solo paso."""
         url = self.client.upload_file(image_data, FileType.PICTURE, file_name=filename)
         width, height = util.get_image_dimensions(image_data)
@@ -517,11 +517,12 @@ class GroupClient:
         
         return self.send_image(
             group_id, url, filename, len(image_data),
-            width, height, thumbnail, caption
+            width, height, thumbnail, caption,
+            reply_to_id=reply_to_id
         )
     
     def upload_and_send_file(self, group_id: str, file_data: bytes,
-                             filename: str, caption: str = "") -> str:
+                             filename: str, caption: str = "", reply_to_id: str = "") -> str:
         """Sube un archivo y lo envía al grupo en un solo paso."""
         url = self.client.upload_file(file_data, FileType.FILE, file_name=filename)
-        return self.send_file(group_id, url, filename, len(file_data), caption)
+        return self.send_file(group_id, url, filename, len(file_data), caption, reply_to_id=reply_to_id)

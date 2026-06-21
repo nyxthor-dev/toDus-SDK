@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>toDus-API - Documentación</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f8f9fa;
+        }
+
+        /* Header */
+        header {
+            background: linear-gradient(135deg, #c41e3a 0%, #8b0000 100%);
+            color: white;
+            padding: 3rem 0;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.95;
+        }
+
+        /* Navigation */
+        nav {
+            background-color: #fff;
+            position: sticky;
+            top: 0;
+            border-bottom: 3px solid #c41e3a;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            z-index: 100;
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            padding: 1rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        nav li {
+            margin: 0 1.5rem;
+        }
+
+        nav a {
+            color: #c41e3a;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+
+        nav a:hover {
+            color: #8b0000;
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Sections */
+        section {
+            background: white;
+            margin-bottom: 2rem;
+            padding: 2.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border-left: 5px solid #c41e3a;
+        }
+
+        section h2 {
+            color: #c41e3a;
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 0.5rem;
+        }
+
+        section h3 {
+            color: #8b0000;
+            font-size: 1.4rem;
+            margin-top: 1.5rem;
+            margin-bottom: 0.8rem;
+        }
+
+        section h4 {
+            color: #555;
+            font-size: 1.1rem;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        p {
+            margin-bottom: 1rem;
+            color: #555;
+        }
+
+        /* Code/Terminal Blocks */
+        .terminal {
+            background-color: #1e1e1e;
+            color: #00ff00;
+            padding: 1.5rem;
+            border-radius: 6px;
+            margin: 1.5rem 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95rem;
+            overflow-x: auto;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+            border: 1px solid #333;
+        }
+
+        .terminal-header {
+            color: #888;
+            margin-bottom: 0.8rem;
+            font-size: 0.9rem;
+        }
+
+        .terminal-prompt {
+            color: #00ff00;
+            user-select: none;
+        }
+
+        .terminal-command {
+            color: #ffff00;
+        }
+
+        .terminal-comment {
+            color: #888;
+            font-style: italic;
+        }
+
+        /* Code inline */
+        code {
+            background-color: #f4f4f4;
+            padding: 0.2rem 0.5rem;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: #c41e3a;
+            font-size: 0.95rem;
+        }
+
+        /* Lists */
+        ul, ol {
+            margin-left: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+            color: #555;
+        }
+
+        /* Feature Grid */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .feature-box {
+            background: linear-gradient(135deg, #fff 0%, #f9f9f9 100%);
+            padding: 1.5rem;
+            border-radius: 6px;
+            border: 2px solid #f0f0f0;
+            border-left: 4px solid #c41e3a;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .feature-box:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(196, 30, 58, 0.15);
+        }
+
+        .feature-box h4 {
+            color: #c41e3a;
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-box p {
+            font-size: 0.95rem;
+            color: #666;
+        }
+
+        /* Highlight boxes */
+        .highlight {
+            background-color: #fff5f5;
+            border-left: 4px solid #c41e3a;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 4px;
+        }
+
+        .highlight strong {
+            color: #c41e3a;
+        }
+
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+        }
+
+        th {
+            background-color: #c41e3a;
+            color: white;
+            padding: 0.8rem;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 0.8rem;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        tr:hover {
+            background-color: #f0f0f0;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-block;
+            padding: 0.8rem 1.5rem;
+            background-color: #c41e3a;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background-color 0.3s ease;
+            margin-top: 1rem;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .btn:hover {
+            background-color: #8b0000;
+        }
+
+        .btn-secondary {
+            background-color: #666;
+        }
+
+        .btn-secondary:hover {
+            background-color: #444;
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 0.3rem 0.7rem;
+            background-color: #c41e3a;
+            color: white;
+            border-radius: 3px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-right: 0.5rem;
+        }
+
+        .badge-success {
+            background-color: #28a745;
+        }
+
+        .badge-info {
+            background-color: #17a2b8;
+        }
+
+        /* Footer */
+        footer {
+            background: linear-gradient(135deg, #c41e3a 0%, #8b0000 100%);
+            color: white;
+            text-align: center;
+            padding: 2rem;
+            margin-top: 3rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            nav ul {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            nav li {
+                margin: 0.5rem 0;
+            }
+
+            header h1 {
+                font-size: 2rem;
+            }
+
+            section {
+                padding: 1.5rem;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+        }
+
+        /* Scroll to top */
+        #scrollBtn {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #c41e3a;
+            color: white;
+            padding: 0.8rem 1rem;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 99;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.3s ease;
+        }
+
+        #scrollBtn:hover {
+            background-color: #8b0000;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <h1>📱 toDus-API</h1>
+        <p>Cliente Python moderno para la plataforma de mensajería ToDus</p>
+    </header>
+
+    <!-- Navigation -->
+    <nav>
+        <ul>
+            <li><a href="#introduccion">Introducción</a></li>
+            <li><a href="#inicio-rapido">Inicio Rápido</a></li>
+            <li><a href="#instalacion">Instalación</a></li>
+            <li><a href="#ejemplos">Ejemplos</a></li>
+            <li><a href="#features">Características</a></li>
+            <li><a href="#mensajeria">Mensajería</a></li>
+            <li><a href="#queue">Message Queue</a></li>
+        </ul>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Introducción -->
+        <section id="introduccion">
+            <h2>🎯 Introducción</h2>
+            <p>
+                <strong>toDus-API</strong> es una librería Python moderna y completa que proporciona un cliente XMPP/HTTP 
+                para interactuar con la red de mensajería instantánea cubana <strong>ToDus</strong>. Con esta librería 
+                puedes crear bots interactivos, manejar grupos, enviar contenido multimedia y mucho más.
+            </p>
+            
+            <div class="highlight">
+                <strong>✨ Cobertura del protocolo:</strong> 100% de las funciones de la app oficial.
+            </div>
+
+            <h3>¿Qué puedes hacer?</h3>
+            <div class="feature-grid">
+                <div class="feature-box">
+                    <h4>💬 Mensajería Privada</h4>
+                    <p>Envía y recibe mensajes de texto, edita, elimina y gestiona confirmaciones de lectura.</p>
+                </div>
+                <div class="feature-box">
+                    <h4>👥 Gestión de Grupos</h4>
+                    <p>Crea, gestiona y participa en grupos MUC Light con control total de permisos.</p>
+                </div>
+                <div class="feature-box">
+                    <h4>📁 Archivos y Multimedia</h4>
+                    <p>Sube y descarga archivos, imágenes, videos, stickers y contactos de forma segura.</p>
+                </div>
+                <div class="feature-box">
+                    <h4>🔄 Queue de Mensajes</h4>
+                    <p>Cola persistente con reintentos automáticos, ideal para bots offline-first.</p>
+                </div>
+                <div class="feature-box">
+                    <h4>🎚️ Control Avanzado</h4>
+                    <p>Manejo de presencia, privacidad, bloques y ubicaciones en tiempo real.</p>
+                </div>
+                <div class="feature-box">
+                    <h4>⚡ Rendimiento</h4>
+                    <p>Arquitectura asíncrona con soporte para múltiples conexiones simultáneas.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Inicio Rápido -->
+        <section id="inicio-rapido">
+            <h2>🚀 Inicio Rápido</h2>
+            <p>Aquí tienes un flujo básico para empezar con toDus-API en menos de 5 minutos.</p>
+
+            <h3>1. Instalación básica</h3>
+            <div class="terminal">
+                <div class="terminal-header">$ Terminal</div>
+                <div><span class="terminal-prompt">$</span> <span class="terminal-command">pip install todus-API</span></div>
+            </div>
+
+            <h3>2. Tu primer bot</h3>
+            <div class="terminal">
+                <div class="terminal-header">$ python3 bot.py</div>
+                <div><span class="terminal-prompt">>>> </span> <span class="terminal-command">from todus import ToDusClient2</span></div>
+                <div class="terminal-comment"># Crear cliente</div>
+                <div><span class="terminal-prompt">>>> </span> <span class="terminal-command">client = ToDusClient2(phone_number="5312345678", password="mi_password")</span></div>
+                <div class="terminal-comment"># Login</div>
+                <div><span class="terminal-prompt">>>> </span> <span class="terminal-command">client.login()</span></div>
+                <div class="terminal-comment"># Enviar mensaje</div>
+                <div><span class="terminal-prompt">>>> </span> <span class="terminal-command">client.send_message("5387654321", "¡Hola desde toDus-API!")</span></div>
+            </div>
+
+            <h3>3. Escuchar mensajes entrantes</h3>
+            <div class="terminal">
+                <div class="terminal-header">$ python3 listener.py</div>
+                <div><span class="terminal-prompt">>>> </span> <span class="terminal-command">def callback(msg):</span></div>
+                <div><span class="terminal-prompt">... </span>    <span class="terminal-command">print(f"Mensaje: {msg.get('body')}")</span></div>
+                <div><span class="terminal-prompt">>>> </span> <span class="terminal-command">client.listen_messages(callback)</span></div>
+            </div>
+        </section>
+
+        <!-- Instalación -->
+        <section id="instalacion">
+            <h2>📦 Instalación</h2>
+
+            <h3>Requisitos</h3>
+            <ul>
+                <li><strong>Python</strong> ≥ 3.11</li>
+                <li><strong>pip</strong> (gestor de paquetes de Python)</li>
+                <li>Conexión a internet</li>
+            </ul>
+
+            <h3>Instalación desde PyPI</h3>
+            <div class="terminal">
+                <div class="terminal-header">$ Instalación estándar</div>
+                <div><span class="terminal-prompt">$</span> <span class="terminal-command">pip install todus-API</span></div>
+                <div style="margin-top: 0.8rem;"><span class="terminal-prompt">$</span> <span class="terminal-command">python3 -c "import todus; print('✓ Instalado correctamente')"</span></div>
+            </div>
+
+            <h3>Instalación de desarrollo</h3>
+            <div class="terminal">
+                <div class="terminal-header">$ Desde repositorio (con tests y extras)</div>
+                <div><span class="terminal-prompt">$</span> <span class="terminal-command">git clone https://github.com/ElJoker63/toDus-API.git</span></div>
+                <div style="margin-top: 0.5rem;"><span class="terminal-prompt">$</span> <span class="terminal-command">cd toDus-API</span></div>
+                <div style="margin-top: 0.5rem;"><span class="terminal-prompt">$</span> <span class="terminal-command">pip install -e ".[dev]"</span></div>
+                <div style="margin-top: 0.5rem;"><span class="terminal-prompt">$</span> <span class="terminal-command">python3 -m pytest tests/ -v</span></div>
+            </div>
+
+            <h3>Verificación de instalación</h3>
+            <div class="terminal">
+                <div class="terminal-header">$ Verificar versión</div>
+                <div><span class="terminal-prompt">$</span> <span class="terminal-command">python3 -c "import todus; print(f'Version: {todus.__version__}')"</span></div>
+                <div style="margin-top: 0.5rem; color: #00ff00;">Version: 1.5.2</div>
+            </div>
+        </section>
+
+        <!-- Ejemplos -->
+        <section id="ejemplos">
+            <h2>💡 Ejemplos Prácticos</h2>
+
+            <h3>Ejemplo 1: Bot Simple que Responde</h3>
+            <div class="terminal">
+                <div class="terminal-header">$ bot_responder.py</div>
+                <div><span class="terminal-prompt">#</span> <span class="terminal-comment">#!/usr/bin/env python3</span></div>
+                <div><span class="terminal-command">from todus import ToDusClient2</span></div>
+                <div style="margin-top: 0.5rem;"><span class="terminal-command">client = ToDusClient2("5312345678", "password")</span></div>
+                <div style="margin-top: 0.5rem;"><span class="terminal-command">client.login()</span></div>
+                <div style="margin-top: 0.5rem;"><span class="terminal-command">def on_message(msg):</span></div>
+                <div><span class="terminal-prompt">    </span><span class="terminal-command">if msg.get('body'):</span></div>
+                <div><span class="terminal-prompt">        </span><span class="terminal-command">sender = msg.get('from')</span></div>
+                <div><span class="terminal-prompt">        </span><span class="terminal-command">client.send_message(sender, "Recibido: " + msg['body'])</span></div>
+                <div style="margin-top: 0.5rem;"><span class="terminal-command">client.listen_messages(on_message)</span></div>
+            </div>
+
+            <h3>Ejemplo 2: Enviar Imagen</h3>
+            <div class="terminal">
+                <div class="terminal-header">$ enviar_imagen.py</div>
+                <div><span class="terminal-command">from todus import ToDusClient2, FileType</span></div>
+                <div style="margin-top: 0.5rem;"><span class="terminal-command">client = ToDusClient2("5312345678", "password")</span></div>
+                <div style="margin-top: 0.5rem;"><span class="terminal-command">client.login()</span></div>
+                <div style="margin-top: 0.5rem;"><span class="terminal-comment"># Subir imagen</span></div>
+                <div><span class="terminal-command">with open("foto.jpg", "rb") as f:</span></div>
+                <div><span class="terminal-prompt">    </span><span class="terminal-command">url = client.upload_file(f.read(), FileType.PICTURE)</span></div>
+                <div style="margin-top: 0.5rem;"><span class="terminal-comment"># Enviar como mensaje</span></div>
+                <div><span class="terminal-command">client.send_image_message("5387654321", url, "foto.jpg", 45678)</span></div>
+            </div>
+
+            <h3>Ejemplo 3: Gestionar Grupos</h3>
+            <div class="terminal">
+                <div class="terminal-header">$ gestor_grupos.py</div>
+                <div><span class="terminal-command">from todus import ToDusClient2</span></div>
+                <div style="margin-top: 0.5rem;"><span class="terminal-command">client = ToDusClient2("5312345678", "password")</span></div>
+                <div style="margin-top: 0.5rem;"><span class="terminal-command">client.login()</span></div>
+                <div style="margin-top: 0.5rem;"><span class="terminal-comment"># Unirse a grupo</span></div>
+                <div><span class="terminal-command">client.groups.join("grupo_id_123")</span></div>
+                <div style="margin-top: 0.5rem;"><span class="terminal-comment"># Enviar mensaje al grupo</span></div>
+                <div><span class="terminal-command">client.send_message("grupo_id_123", "¡Hola grupo!")</span></div>
+                <div style="margin-top: 0.5rem;"><span class="terminal-comment"># Salir del grupo</span></div>
+                <div><span class="terminal-command">client.groups.leave("grupo_id_123")</span></div>
+            </div>
+        </section>
+
+        <!-- Características -->
+        <section id="features">
+            <h2>✨ Características Principales</h2>
+
+            <h3>Autenticación</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Método</th>
+                        <th>Descripción</th>
+                        <th>Uso</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>request_code(phone)</code></td>
+                        <td>Solicita código SMS</td>
+                        <td><code>client.request_code("5312345678")</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>validate_code(phone, code)</code></td>
+                        <td>Valida código SMS</td>
+                        <td><code>client.validate_code("5312345678", "1234")</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>login(phone, password)</code></td>
+                        <td>Autentica con credentials</td>
+                        <td><code>client.login("5312345678", "pass")</code></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Estados de Mensaje</h3>
+            <p>Los mensajes pueden estar en diferentes estados:</p>
+            <ul>
+                <li><span class="badge">pending</span> - Esperando envío</li>
+                <li><span class="badge">sent</span> - Enviado al servidor</li>
+                <li><span class="badge">delivered</span> - Entregado al destinatario</li>
+                <li><span class="badge">read</span> - Leído por el destinatario</li>
+                <li><span class="badge badge-success">failed</span> - Falló permanentemente</li>
+            </ul>
+
+            <h3>Tipos de Archivo</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tipo</th>
+                        <th>Código</th>
+                        <th>Ejemplo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Archivo</td>
+                        <td><code>FileType.FILE</code></td>
+                        <td>Documentos, PDFs, etc.</td>
+                    </tr>
+                    <tr>
+                        <td>Voz</td>
+                        <td><code>FileType.VOICE</code></td>
+                        <td>Audios cortos</td>
+                    </tr>
+                    <tr>
+                        <td>Audio</td>
+                        <td><code>FileType.AUDIO</code></td>
+                        <td>Canciones, música</td>
+                    </tr>
+                    <tr>
+                        <td>Video</td>
+                        <td><code>FileType.VIDEO</code></td>
+                        <td>Videos, películas</td>
+                    </tr>
+                    <tr>
+                        <td>Imagen</td>
+                        <td><code>FileType.PICTURE</code></td>
+                        <td>Fotos, imágenes</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Mensajería -->
+        <section id="mensajeria">
+            <h2>💬 Sistema de Mensajería</h2>
+
+            <h3>Enviar Mensajes</h3>
+            <div class="terminal">
+                <div class="terminal-header">$ Enviar texto plano</div>
+                <div><span class="terminal-command">client.send_message("5312345678", "Hola, ¿cómo estás?")</span></div>
+            </div>
+
+            <h3>Responder a un Mensaje (Reply)</h3>
+            <div class="terminal">
+                <div class="terminal-header">$ Responder a un mensaje</div>
+                <div><span class="terminal-command">client.send_message("5312345678", "Yo también!", reply_to_id="msg_123")</span></div>
+            </div>
+
+            <h3>Editar Mensaje</h3>
+            <div class="terminal">
+                <div class="terminal-header">$ Editar un mensaje enviado</div>
+                <div><span class="terminal-command">client.edit_message("5312345678", "Texto editado", "msg_123")</span></div>
+            </div>
+
+            <h3>Eliminar Mensaje</h3>
+            <div class="terminal">
+                <div class="terminal-header">$ Eliminar un mensaje</div>
+                <div><span class="terminal-command">client.delete_message("5312345678", "msg_123")</span></div>
+            </div>
+
+            <h3>Enviar Botones Interactivos</h3>
+            <div class="terminal">
+                <div class="terminal-header">$ Botones interactivos</div>
+                <div><span class="terminal-command">buttons = [</span></div>
+                <div><span class="terminal-prompt">    </span><span class="terminal-command">{"text": "Sí", "command": "cmd_type_send", "data": "si_presionado"},</span></div>
+                <div><span class="terminal-prompt">    </span><span class="terminal-command">{"text": "No", "command": "cmd_type_send", "data": "no_presionado"}</span></div>
+                <div><span class="terminal-command">]</span></div>
+                <div style="margin-top: 0.5rem;"><span class="terminal-command">client.send_button_message("5312345678", "¿Estás disponible?", buttons)</span></div>
+            </div>
+
+            <h3>Estado de Escritura (Typing Indicator)</h3>
+            <div class="terminal">
+                <div class="terminal-header">$ Indicador de escritura</div>
+                <div><span class="terminal-command">client.send_chat_state("5312345678", "composing")</span></div>
+                <div style="margin-top: 0.8rem;"><span class="terminal-comment"># Pausar escritura</span></div>
+                <div><span class="terminal-command">client.send_chat_state("5312345678", "paused")</span></div>
+            </div>
+        </section>
+
+        <!-- Message Queue -->
+        <section id="queue">
+            <h2>🔄 Message Queue - Bots Offline-First</h2>
+
+            <p>
+                El sistema de Message Queue permite que tu bot almacene mensajes localmente y los reintente automáticamente 
+                si fallan o hay desconexiones. Ideal para aplicaciones críticas.
+            </p>
+
+            <h3>Características</h3>
+            <ul>
+                <li>Almacenamiento persistente en SQLite</li>
+                <li>Reintentos automáticos con backoff exponencial</li>
+                <li>Callbacks para eventos de envío</li>
+                <li>Thread-safe y optimizado</li>
+                <li>Estadísticas en tiempo real</li>
+            </ul>
+
+            <h3>Uso Básico</h3>
+            <div class="terminal">
+                <div class="terminal-header">$ bot_con_queue.py</div>
+                <div><span class="terminal-command">from todus import ToDusClientWithQueue</span></div>
+                <div style="margin-top: 0.5rem;"><span class="terminal-command">client = ToDusClientWithQueue("5312345678", "password")</span></div>
+                <div style="margin-top: 0.5rem;"><span class="terminal-command">client.login()</span></div>
+                <div style="margin-top: 0.5rem;"><span class="terminal-comment"># Registrar callback</span></div>
+                <div><span class="terminal-command">def on_delivered(msg):</span></div>
+                <div><span class="terminal-prompt">    </span><span class="terminal-command">print(f"✓ Entregado: {msg.msg_id}")</span></div>
+                <div style="margin-top: 0.5rem;"><span class="terminal-command">client.register_on_message_delivered(on_delivered)</span></div>
+                <div style="margin-top: 0.5rem;"><span class="terminal-comment"># Enviar con queue</span></div>
+                <div><span class="terminal-command">client.send_message_queued("5312345678", "Hola con retry automático")</span></div>
+            </div>
+
+            <h3>Ver Estadísticas</h3>
+            <div class="terminal">
+                <div class="terminal-header">$ Estadísticas de la cola</div>
+                <div><span class="terminal-command">stats = client.get_queue_stats()</span></div>
+                <div style="margin-top: 0.5rem;"><span class="terminal-command">print(stats)</span></div>
+                <div style="margin-top: 0.8rem; color: #00ff00;">
+                    {'pending': 2, 'sent': 5, 'delivered': 12, 'read': 8, 'failed': 1}
+                </div>
+            </div>
+
+            <h3>Backoff Exponencial</h3>
+            <p>Los reintentos se hacen con delays progresivos:</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Intento</th>
+                        <th>Fórmula</th>
+                        <th>Delay</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td>2^0</td>
+                        <td>~1s</td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td>2^1</td>
+                        <td>~2s</td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td>2^2</td>
+                        <td>~4s</td>
+                    </tr>
+                    <tr>
+                        <td>N</td>
+                        <td>2^N (máx 300s)</td>
+                        <td>Exponencial capped</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="highlight">
+                <strong>💡 Tip:</strong> El queue se persiste en <code>~/.todus/messages.db</code>, 
+                así que sobrevive a reinicios del programa.
+            </div>
+        </section>
+
+        <!-- Footer Section with Links -->
+        <section>
+            <h2>🔗 Referencias y Enlaces</h2>
+            <ul>
+                <li><a href="https://github.com/ElJoker63/toDus-API" target="_blank">📚 Repositorio GitHub</a></li>
+                <li><a href="https://pypi.org/project/toDus-API/" target="_blank">📦 PyPI Package</a></li>
+                <li><a href="https://github.com/ElJoker63/toDus-API/issues" target="_blank">🐛 Reportar Issues</a></li>
+                <li><a href="https://github.com/ElJoker63/toDus-API/blob/main/CONTRIBUTING.md" target="_blank">🤝 Guía de Contribución</a></li>
+            </ul>
+
+            <h2>📝 Licencia</h2>
+            <p>toDus-API se distribuye bajo la licencia MIT. Consulta el archivo <code>LICENSE</code> para más detalles.</p>
+
+            <h2>❓ Preguntas Frecuentes</h2>
+            <h4>¿Necesito ser desarrollador para usar esto?</h4>
+            <p>No necesariamente. Si conoces Python básico, puedes crear bots simples. Para cosas más avanzadas, 
+            se recomienda tener conocimientos de programación.</p>
+
+            <h4>¿Es seguro para producción?</h4>
+            <p>Sí, el código está optimizado, tiene tests y es usado en múltiples proyectos en producción. 
+            Asegúrate de manejar credenciales de forma segura (variables de entorno, no hardcodear).</p>
+
+            <h4>¿Cómo reporto un bug?</h4>
+            <p>Abre un issue en GitHub con: descripción del problema, pasos para reproducir, y versión de Python/toDus-API.</p>
+        </section>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2026 toDus-API. Desarrollado por la comunidad con ❤️</p>
+        <p>Última actualización: 21 de junio de 2026</p>
+    </footer>
+
+    <!-- Scroll to Top Button -->
+    <button id="scrollBtn" onclick="scrollToTop()">⬆</button>
+
+    <script>
+        // Mostrar/ocultar botón scroll
+        window.onscroll = function() {
+            const btn = document.getElementById("scrollBtn");
+            if (document.body.scrollTop > 300 || document.documentElement.scrollTop > 300) {
+                btn.style.display = "flex";
+            } else {
+                btn.style.display = "none";
+            }
+        };
+
+        // Función scroll suave
+        function scrollToTop() {
+            window.scrollTo({
+                top: 0,
+                behavior: "smooth"
+            });
+        }
+
+        // Smooth scroll para links de navegación
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                const href = this.getAttribute('href');
+                if (href !== '#' && document.querySelector(href)) {
+                    e.preventDefault();
+                    document.querySelector(href).scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

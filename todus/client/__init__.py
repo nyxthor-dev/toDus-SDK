@@ -6,6 +6,7 @@ import time
 import random
 from base64 import b64encode
 from typing import Callable
+from functools import wraps
 
 from .base import ToDusClientBase
 from .auth import ToDusAuthMixin
@@ -75,6 +76,15 @@ class ToDusClient2(ToDusClient):
         # Los teléfonos cubanos en ToDus son 10 dígitos empezando por 53
         return not (target.isdigit() and len(target) == 10 and target.startswith("53"))
 
+    def _require_token(self, func: Callable) -> Callable:
+        """Decorator para verificar que hay token válido antes de ejecutar método."""
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            if not self._token:
+                raise AuthenticationError("No autenticado. Ejecuta login() primero.")
+            return func(*args, **kwargs)
+        return wrapper
+
     @property
     def token(self) -> str:
         return self._token
@@ -107,262 +117,137 @@ class ToDusClient2(ToDusClient):
     def validate_code(self, code: str) -> None:
         self.password = super().validate_code(self.phone_number, code)
 
-    # --- Métodos auxiliares para evitar duplicación ---
-
-    def _private_send_message(self, to_jid: str, body: str) -> str:
-        return super().send_message(self._token, to_jid, body)
-
-    def _private_edit_message(self, to_jid: str, new_body: str, original_msg_id: str) -> str:
-        return super().edit_message(self._token, to_jid, new_body, original_msg_id)
-
-    def _private_send_file_message(self, to_jid: str, url: str, file_type: FileType, caption: str, file_name: str, file_size: int) -> str:
-        return super().send_file_message(self._token, to_jid, url, file_type, caption, file_name, file_size)
-
-    def _private_send_image_message(self, to_jid: str, url: str, file_name: str, file_size: int, width: int, height: int, thumbnail: str, caption: str) -> str:
-        return super().send_image_message(self._token, to_jid, url, file_name, file_size, width, height, thumbnail, caption)
-
-    def _private_send_image_message_simple(self, to_jid: str, url: str, file_name: str, file_size: int) -> str:
-        return super().send_image_message_simple(self._token, to_jid, url, file_name, file_size)
-
-    def _private_send_contact_message(self, to_jid: str, contact_id: str, contact_name: str, contact_phone: str) -> str:
-        return super().send_contact_message(self._token, to_jid, contact_id, contact_name, contact_phone)
-
-    def _private_send_sticker_message(self, to_jid: str, sticker_id: str, sticker_name: str, sticker_pack: str, sticker_hash: str) -> str:
-        return super().send_sticker_message(self._token, to_jid, sticker_id, sticker_name, sticker_pack, sticker_hash)
-
-    def _private_send_video_message(self, to_jid: str, url: str, video_id: str, file_name: str, file_size: int, duration: int, width: int, height: int, thumbnail: str, info_text: str) -> str:
-        return super().send_video_message(self._token, to_jid, url, video_id, file_name, file_size, duration, width, height, thumbnail, info_text)
-
-    def _private_send_location_message(self, to_jid: str, lat: float, lon: float, zoom: float, text: str) -> str:
-        return super().send_location_message(self._token, to_jid, lat, lon, zoom, text)
-
-    def _private_send_event_message(self, to_jid: str, title: str, start: int, end: int, all_day: bool, ics_data: str, event_id: str) -> str:
-        return super().send_event_message(self._token, to_jid, title, start, end, all_day, ics_data, event_id)
-
-    def _private_delete_message(self, to_jid: str, message_id: str, body: str, media_xml: str) -> str:
-        return super().delete_message(self._token, to_jid, message_id, body=body, media_xml=media_xml)
-
-    def _send_to_target(self, target: str, private_fn, group_fn, *args, **kwargs):
-        """
-        Resuelve si target es grupo o privado y ejecuta el método correspondiente.
-        private_fn: función que recibe (to_jid, *args, **kwargs)
-        group_fn: función que recibe (group_id, *args, **kwargs)
-        """
-        if not self._token:
-            raise AuthenticationError("No autenticado")
-        if self._is_group_target(target):
-            return group_fn(target, *args, **kwargs)
-        else:
-            to_jid = util.build_jid(target)
-            return private_fn(to_jid, *args, **kwargs)
-
     # --- Mensajería Privada / Grupo (auto-detección) ---
 
-    def send_message(self, to_phone: str, body: str) -> str:
-        return self._send_to_target(
-            to_phone,
-            self._private_send_message,
-            self.groups.send_message,
-            body
-        )
+    def send_message(self, to_phone: str, body: str, reply_to_id: str = "") -> str:
+        if not self._token:
+            raise AuthenticationError("No autenticado")
+        if self._is_group_target(to_phone):
+            return self.groups.send_message(to_phone, body, reply_to_id=reply_to_id)
+        to_jid = util.build_jid(to_phone)
+        return super().send_message(self._token, to_jid, body, reply_to_id)
 
-    def edit_message(self, to_phone: str, new_body: str, original_msg_id: str) -> str:
-        return self._send_to_target(
-            to_phone,
-            self._private_edit_message,
-            self.groups.edit_message,
-            new_body,
-            original_msg_id
-        )
+    def edit_message(self, to_phone: str, new_body: str, original_msg_id: str, reply_to_id: str = "") -> str:
+        if not self._token:
+            raise AuthenticationError("No autenticado")
+        if self._is_group_target(to_phone):
+            return self.groups.edit_message(to_phone, new_body, original_msg_id, reply_to_id=reply_to_id)
+        to_jid = util.build_jid(to_phone)
+        return super().edit_message(self._token, to_jid, new_body, original_msg_id, reply_to_id)
 
-    def send_file_message(self, to_phone: str, url: str, file_type: FileType, caption: str = "", file_name: str = "", file_size: int = 0) -> str:
-        return self._send_to_target(
-            to_phone,
-            self._private_send_file_message,
-            self.groups.send_file,
-            url,
-            file_type,
-            caption,
-            file_name,
-            file_size
-        )
+    def send_file_message(self, to_phone: str, url: str, file_type: FileType,
+                          caption: str = "", file_name: str = "", file_size: int = 0,
+                          reply_to_id: str = "") -> str:
+        if not self._token:
+            raise AuthenticationError("No autenticado")
+        if self._is_group_target(to_phone):
+            return self.groups.send_file(to_phone, url, file_type, caption, file_name, file_size, reply_to_id=reply_to_id)
+        to_jid = util.build_jid(to_phone)
+        return super().send_file_message(self._token, to_jid, url, file_type, caption, file_name, file_size, reply_to_id)
 
-    def send_image_message(self, to_phone: str, url: str, file_name: str, file_size: int, width: int = 0, height: int = 0, thumbnail: str = "", caption: str = "") -> str:
-        return self._send_to_target(
-            to_phone,
-            self._private_send_image_message,
-            self.groups.send_image,
-            url,
-            file_name,
-            file_size,
-            width,
-            height,
-            thumbnail,
-            caption
-        )
+    def send_image_message(self, to_phone: str, url: str, file_name: str, file_size: int,
+                           width: int = 0, height: int = 0, thumbnail: str = "",
+                           caption: str = "", reply_to_id: str = "") -> str:
+        if not self._token:
+            raise AuthenticationError("No autenticado")
+        if self._is_group_target(to_phone):
+            return self.groups.send_image(to_phone, url, file_name, file_size, width, height, thumbnail, caption, reply_to_id=reply_to_id)
+        to_jid = util.build_jid(to_phone)
+        return super().send_image_message(self._token, to_jid, url, file_name, file_size, width, height, thumbnail, caption, reply_to_id)
 
-    def send_image_message_simple(self, to_phone: str, url: str, file_name: str, file_size: int) -> str:
-        return self._send_to_target(
-            to_phone,
-            self._private_send_image_message_simple,
-            self.groups.send_image,
-            url,
-            file_name,
-            file_size,
-            0,  # width
-            0,  # height
-            "", # thumbnail
-            ""  # caption
-        )
+    def send_image_message_simple(self, to_phone: str, url: str, file_name: str,
+                                  file_size: int, reply_to_id: str = "") -> str:
+        if not self._token:
+            raise AuthenticationError("No autenticado")
+        if self._is_group_target(to_phone):
+            return self.groups.send_image(to_phone, url, file_name, file_size, reply_to_id=reply_to_id)
+        to_jid = util.build_jid(to_phone)
+        return super().send_image_message_simple(self._token, to_jid, url, file_name, file_size, reply_to_id=reply_to_id)
 
-    def send_button_message(self, to_phone: str, text: str, buttons: list[dict]) -> str:
+    def send_button_message(self, to_phone: str, text: str, buttons: list[dict],
+                            reply_to_id: str = "") -> str:
         # Los botones no tienen soporte nativo en grupos; se envía solo el texto
         if not self._token:
             raise AuthenticationError("No autenticado")
         if self._is_group_target(to_phone):
-            return self.groups.send_message(to_phone, text)
-        else:
-            to_jid = util.build_jid(to_phone)
-            return super().send_button_message(self._token, to_jid, text, buttons)
+            return self.groups.send_message(to_phone, text, reply_to_id=reply_to_id)
+        to_jid = util.build_jid(to_phone)
+        return super().send_button_message(self._token, to_jid, text, buttons, reply_to_id)
 
-    def send_contact_message(self, to_phone: str, contact_id: str, contact_name: str, contact_phone: str) -> str:
-        return self._send_to_target(
-            to_phone,
-            self._private_send_contact_message,
-            self.groups.send_contact,
-            contact_id,
-            contact_name,
-            contact_phone
-        )
+    def send_contact_message(self, to_phone: str, contact_id: str, contact_name: str,
+                             contact_phone: str, reply_to_id: str = "") -> str:
+        if not self._token:
+            raise AuthenticationError("No autenticado")
+        if self._is_group_target(to_phone):
+            return self.groups.send_contact(to_phone, contact_id, contact_name, contact_phone, reply_to_id=reply_to_id)
+        to_jid = util.build_jid(to_phone)
+        return super().send_contact_message(self._token, to_jid, contact_id, contact_name, contact_phone, reply_to_id)
 
-    def send_sticker_message(self, to_phone: str, sticker_id: str, sticker_name: str, sticker_pack: str, sticker_hash: str) -> str:
-        return self._send_to_target(
-            to_phone,
-            self._private_send_sticker_message,
-            self.groups.send_sticker,
-            sticker_id,
-            sticker_name,
-            sticker_pack,
-            sticker_hash
-        )
+    def send_sticker_message(self, to_phone: str, sticker_id: str, sticker_name: str,
+                             sticker_pack: str, sticker_hash: str,
+                             reply_to_id: str = "") -> str:
+        if not self._token:
+            raise AuthenticationError("No autenticado")
+        if self._is_group_target(to_phone):
+            return self.groups.send_sticker(to_phone, sticker_id, sticker_name, sticker_pack, sticker_hash, reply_to_id=reply_to_id)
+        to_jid = util.build_jid(to_phone)
+        return super().send_sticker_message(self._token, to_jid, sticker_id, sticker_name, sticker_pack, sticker_hash, reply_to_id)
 
-    def send_video_message(self, to_phone: str, url: str, video_id: str, file_name: str, file_size: int, duration: int, width: int, height: int, thumbnail: str, info_text: str = "") -> str:
-        return self._send_to_target(
-            to_phone,
-            self._private_send_video_message,
-            self.groups.send_video,
-            url,
-            video_id,
-            file_name,
-            file_size,
-            duration,
-            width,
-            height,
-            thumbnail,
-            info_text
-        )
+    def send_video_message(self, to_phone: str, url: str, video_id: str,
+                           file_name: str, file_size: int, duration: int,
+                           width: int, height: int, thumbnail: str,
+                           info_text: str = "", reply_to_id: str = "") -> str:
+        if not self._token:
+            raise AuthenticationError("No autenticado")
+        if self._is_group_target(to_phone):
+            return self.groups.send_video(to_phone, url, video_id, file_name, file_size, duration, width, height, thumbnail, info_text, reply_to_id=reply_to_id)
+        to_jid = util.build_jid(to_phone)
+        return super().send_video_message(self._token, to_jid, url, video_id, file_name, file_size, duration, width, height, thumbnail, info_text, reply_to_id)
 
-    def send_location_message(self, to_phone: str, lat: float, lon: float, zoom: float = 11.0, text: str = "") -> str:
-        return self._send_to_target(
-            to_phone,
-            self._private_send_location_message,
-            self.groups.send_location,
-            lat,
-            lon,
-            zoom,
-            text
-        )
+    def send_location_message(self, to_phone: str, lat: float, lon: float,
+                              zoom: float = 11.0, text: str = "",
+                              reply_to_id: str = "") -> str:
+        if not self._token:
+            raise AuthenticationError("No autenticado")
+        if self._is_group_target(to_phone):
+            return self.groups.send_location(to_phone, lat, lon, zoom, text, reply_to_id=reply_to_id)
+        to_jid = util.build_jid(to_phone)
+        return super().send_location_message(self._token, to_jid, lat, lon, zoom, text, reply_to_id)
 
-    def send_event_message(self, to_phone: str, title: str, start: int, end: int, all_day: bool, ics_data: str, event_id: str = "") -> str:
-        return self._send_to_target(
-            to_phone,
-            self._private_send_event_message,
-            self.groups.send_event,
-            title,
-            start,
-            end,
-            all_day,
-            ics_data,
-            event_id
-        )
+    def send_event_message(self, to_phone: str, title: str, start: int, end: int,
+                           all_day: bool, ics_data: str, event_id: str = "",
+                           reply_to_id: str = "") -> str:
+        if not self._token:
+            raise AuthenticationError("No autenticado")
+        if self._is_group_target(to_phone):
+            return self.groups.send_event(to_phone, title, start, end, all_day, ics_data, event_id, reply_to_id=reply_to_id)
+        to_jid = util.build_jid(to_phone)
+        return super().send_event_message(self._token, to_jid, title, start, end, all_day, ics_data, event_id, reply_to_id)
 
     def send_chat_state(self, to_phone: str, state: str) -> None:
-        # Solo privado; si es grupo, ignoramos o lanzamos error
+        # Solo privado; si es grupo, ignoramos
         if not self._token:
             raise AuthenticationError("No autenticado")
         if self._is_group_target(to_phone):
-            return  # Silenciosamente ignorar, o podrías lanzar una excepción
+            return
         super().send_chat_state(self._token, util.build_jid(to_phone), state)
 
-    def delete_message(self, to_phone: str, message_id: str, body: str = "", media_xml: str = "") -> str:
-        return self._send_to_target(
-            to_phone,
-            self._private_delete_message,
-            self.groups.delete_message,
-            message_id,
-            body,
-            media_xml
-        )
-
-    def send_read_receipt(self, to_phone: str, msg_id: str) -> str:
-        # Solo privado
+    def delete_message(self, to_phone: str, message_id: str,
+                       body: str = "", media_xml: str = "", reply_to_id: str = "") -> str:
         if not self._token:
             raise AuthenticationError("No autenticado")
         if self._is_group_target(to_phone):
-            return ""  # O podrías lanzar una excepción
+            return self.groups.delete_message(to_phone, message_id, body, media_xml, reply_to_id=reply_to_id)
         to_jid = util.build_jid(to_phone)
-        return super().send_read_receipt(self._token, to_jid, msg_id)
+        return super().delete_message(self._token, to_jid, message_id, body=body, media_xml=media_xml, reply_to_id=reply_to_id)
 
-    # --- Recepción de mensajes (con soporte para grupos y backoff exponencial) ---
-
-    def listen_messages(self, callback: Callable[[dict], None]) -> None:
+    def send_read_receipt(self, to_phone: str, msg_id: str) -> str:
         if not self._token:
             raise AuthenticationError("No autenticado")
-
-        def group_aware_callback(msg: dict):
-            # Procesar mensajes de grupo
-            if msg.get("type") == "gc":
-                msg = self.groups.process_group_message(msg)
-
-                # Notificar callbacks específicos del grupo
-                group_id = msg.get("group_id")
-                if group_id and self._group_client:
-                    if group_id in self._group_client._group_callbacks:
-                        for cb in self._group_client._group_callbacks[group_id]:
-                            try:
-                                cb(msg.copy())
-                            except Exception as e:
-                                logger.error(f"Error en callback de grupo: {e}")
-
-            callback(msg)
-
-        attempt = 0
-        while True:
-            try:
-                super().listen_messages(self._token, group_aware_callback)
-                attempt = 0  # Conexión exitosa, reiniciar contador
-            except TokenExpiredError:
-                logger.info("Token expirado, intentando renovar...")
-                self.login()
-                attempt = 0
-            except (ConnectionLostError, OSError, socket.error) as e:
-                # Backoff exponencial con jitter para evitar sobrecarga
-                # y efecto rebaño
-                base_wait = min(60, 2 ** attempt)  # Máximo 60 segundos
-                jitter = random.uniform(0, 0.3)    # +0-30% aleatorio
-                wait_time = base_wait * (1 + jitter)
-
-                logger.warning(
-                    f"Error de conexión: {e}. "
-                    f"Reintento #{attempt + 1} en {wait_time:.1f}s"
-                )
-                time.sleep(wait_time)
-                attempt += 1
-            except Exception as e:
-                # Cualquier otro error inesperado
-                logger.error(f"Error inesperado en listen_messages: {e}")
-                time.sleep(5)
-                attempt += 1
+        if self._is_group_target(to_phone):
+            return ""
+        to_jid = util.build_jid(to_phone)
+        return super().send_read_receipt(self._token, to_jid, msg_id)
 
     # --- Archivos ---
 

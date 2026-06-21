@@ -75,6 +75,7 @@ def parse_todus_message(stanza: str) -> dict:
         "is_group": False,
         "group_id": "",
         "sender_phone": "",
+        "reply_to": "",      # <-- NUEVO: ID del mensaje al que se responde
     }
 
     # Detectar si es mensaje de grupo
@@ -126,7 +127,7 @@ def parse_todus_message(stanza: str) -> dict:
             result["file_size"] = 0
         result["file_hash"] = _attr(file_tag, "h")
 
-    # Imagen adjunta (formato </tr>)
+    # Imagen adjunta (formato <image>)
     image_match = re.search(r"<image\b[^>]*>", stanza)
     if image_match:
         image_tag = image_match.group(0)
@@ -273,6 +274,12 @@ def parse_todus_message(stanza: str) -> dict:
             read_tag = read_match.group(0)
             result["receipt"] = _attr(read_tag, "i")
             result["receipt_type"] = "read"
+
+    # REPLY TO (nuevo)
+    reply_match = re.search(r"<reply\b[^>]*>", stanza)
+    if reply_match:
+        reply_tag = reply_match.group(0)
+        result["reply_to"] = _attr(reply_tag, "mi")
 
     return result
 

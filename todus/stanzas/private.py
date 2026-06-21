@@ -106,21 +106,37 @@ def image_message_simple(to: str, url: str, file_name: str, file_size: int,
     )
 
 
-def button_message(to: str, text: str, buttons: list[dict], msg_id: str = "", msg_type: str = "c",
-                   reply_to_id: str = "") -> str:
-    """Stanza con botones interactivos."""
+# stanzas/private.py
+
+def button_message(to: str, text: str, buttons: list[dict], msg_id: str = "", msg_type: str = "c", reply_to_id: str = "") -> str:
+    """
+    Envía mensaje con botones interactivos.
+    
+    Cada botón es un dict con:
+        - text: texto del botón
+        - command: 'cmd_type_send', 'cmd_type_url', 'cmd_type_copy', 'cmd_type_call', 'cmd_type_reply', 'cmd_type_share'
+        - data: valor asociado (texto a enviar, URL, texto a copiar, número de teléfono, etc.)
+        - size: '0.82' (full) o '0.5' (half)
+        - color: 'primary', 'secondary', 'danger', 'success' (opcional)
+        - row: True si debe empezar una nueva fila (opcional)
+    """
     mid = msg_id or _generate_msg_id()
     text_esc = util.escape_xml(text)
+    reply_xml = f"<reply xmlns='reply:n' mi='{reply_to_id}'/>" if reply_to_id else ""
 
     buttons_xml = ""
-    for btn in buttons:
+    for i, btn in enumerate(buttons):
         btn_text = util.escape_xml(btn.get("text", ""))
         btn_cmd = btn.get("command", "cmd_type_send")
         btn_msg = util.escape_xml(btn.get("data", ""))
         btn_size = btn.get("size", "0.82")
-        buttons_xml += f"<button xmlns='button:n' btn_t='{btn_text}' btn_cmd='{btn_cmd}' btn_msg_c='{btn_msg}' btn_size='{btn_size}'/>"
-
-    reply_xml = f"<reply xmlns='reply:n' mi='{reply_to_id}'/>" if reply_to_id else ""
+        btn_color = btn.get("color", "")  # primary, secondary, danger, success
+        btn_row = " true" if btn.get("row", False) else ""
+        
+        color_attr = f" btn_color='{btn_color}'" if btn_color else ""
+        row_attr = f" btn_row='{btn_row.strip()}'" if btn_row else ""
+        
+        buttons_xml += f"<button xmlns='button:n' btn_t='{btn_text}' btn_cmd='{btn_cmd}' btn_msg_c='{btn_msg}' btn_size='{btn_size}'{color_attr}{row_attr}/>"
 
     return (
         f"<m to='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"

@@ -16,86 +16,110 @@ class ToDusMessageMixin:
 
     # --- Mensajeria Privada ---
 
-    def send_message(self, token: str, to_jid: str, body: str) -> str:
+    def send_message(self, token: str, to_jid: str, body: str, reply_to_id: str = "") -> str:
         """Envía mensaje de texto privado. Retorna el msg_id generado."""
         mid = util.generate_token(8)
-        msg = stanza.message(to_jid, body, msg_id=mid)
+        msg = stanza.message(to_jid, body, msg_id=mid, reply_to_id=reply_to_id)
         with self._xmpp_session(token) as sock:
             sock.send(msg.encode())
         return mid
 
-    def edit_message(self, token: str, to_jid: str, new_body: str, original_msg_id: str) -> str:
+    def edit_message(self, token: str, to_jid: str, new_body: str, original_msg_id: str, reply_to_id: str = "") -> str:
         """Edita un mensaje privado."""
         edit_id = util.generate_token(8)
-        msg = stanza.edit_message(to_jid, new_body, original_msg_id, edit_id=edit_id)
+        msg = stanza.edit_message(to_jid, new_body, original_msg_id, edit_id=edit_id, reply_to_id=reply_to_id)
         with self._xmpp_session(token) as sock:
             sock.send(msg.encode())
         return edit_id
 
-    def send_file_message(self, token: str, to_jid: str, url: str, file_type: FileType, caption: str = "", file_name: str = "", file_size: int = 0) -> str:
+    def send_file_message(self, token: str, to_jid: str, url: str, file_type: FileType,
+                          caption: str = "", file_name: str = "", file_size: int = 0,
+                          reply_to_id: str = "") -> str:
         mid = util.generate_token(8)
-        msg = stanza.file_message(to_jid, url, int(file_type), caption, msg_id=mid, file_name=file_name, file_size=file_size)
+        msg = stanza.file_message(to_jid, url, int(file_type), caption, msg_id=mid,
+                                  file_name=file_name, file_size=file_size, reply_to_id=reply_to_id)
         with self._xmpp_session(token) as sock:
             sock.send(msg.encode())
         return mid
 
-    def send_image_message(self, token: str, to_jid: str, url: str, file_name: str, file_size: int, width: int = 0, height: int = 0, thumbnail: str = "", caption: str = "") -> str:
+    def send_image_message(self, token: str, to_jid: str, url: str, file_name: str,
+                           file_size: int, width: int = 0, height: int = 0,
+                           thumbnail: str = "", caption: str = "", reply_to_id: str = "") -> str:
         """Envía mensaje privado con imagen adjunta."""
         mid = util.generate_token(8)
-        msg = stanza.image_message(to_jid, url, file_name, file_size, width, height, thumbnail, caption, msg_id=mid)
+        msg = stanza.image_message(to_jid, url, file_name, file_size, width, height,
+                                   thumbnail, caption, msg_id=mid, reply_to_id=reply_to_id)
         with self._xmpp_session(token) as sock:
             sock.send(msg.encode())
         return mid
 
-    def send_image_message_simple(self, token: str, to_jid: str, url: str, file_name: str, file_size: int, msg_id: str = "") -> str:
+    def send_image_message_simple(self, token: str, to_jid: str, url: str,
+                                  file_name: str, file_size: int, msg_id: str = "",
+                                  reply_to_id: str = "") -> str:
         """Envía mensaje privado con imagen SIN metadata."""
         mid = msg_id or util.generate_token(8)
-        msg = stanza.image_message_simple(to_jid, url, file_name, file_size, msg_id=mid)
+        msg = stanza.image_message_simple(to_jid, url, file_name, file_size,
+                                          msg_id=mid, reply_to_id=reply_to_id)
         with self._xmpp_session(token) as sock:
             sock.send(msg.encode())
         return mid
 
-    def send_button_message(self, token: str, to_jid: str, text: str, buttons: list[dict]) -> str:
+    def send_button_message(self, token: str, to_jid: str, text: str, buttons: list[dict],
+                            reply_to_id: str = "") -> str:
         """Envía mensaje con botones interactivos."""
         mid = util.generate_token(8)
-        msg = stanza.button_message(to_jid, text, buttons, msg_id=mid)
+        msg = stanza.button_message(to_jid, text, buttons, msg_id=mid, reply_to_id=reply_to_id)
         with self._xmpp_session(token) as sock:
             sock.send(msg.encode())
         return mid
 
-    def send_contact_message(self, token: str, to_jid: str, contact_id: str, contact_name: str, contact_phone: str) -> str:
+    def send_contact_message(self, token: str, to_jid: str, contact_id: str,
+                             contact_name: str, contact_phone: str, reply_to_id: str = "") -> str:
         mid = util.generate_token(8)
-        msg = stanza.contact_message(to_jid, contact_id, contact_name, contact_phone, msg_id=mid)
+        msg = stanza.contact_message(to_jid, contact_id, contact_name, contact_phone,
+                                     msg_id=mid, reply_to_id=reply_to_id)
         with self._xmpp_session(token) as sock:
             sock.send(msg.encode())
         return mid
 
-    def send_sticker_message(self, token: str, to_jid: str, sticker_id: str, sticker_name: str, sticker_pack: str, sticker_hash: str) -> str:
+    def send_sticker_message(self, token: str, to_jid: str, sticker_id: str,
+                             sticker_name: str, sticker_pack: str, sticker_hash: str,
+                             reply_to_id: str = "") -> str:
         mid = util.generate_token(8)
-        msg = stanza.sticker_message(to_jid, sticker_id, sticker_name, sticker_pack, sticker_hash, msg_id=mid)
+        msg = stanza.sticker_message(to_jid, sticker_id, sticker_name, sticker_pack,
+                                     sticker_hash, msg_id=mid, reply_to_id=reply_to_id)
         with self._xmpp_session(token) as sock:
             sock.send(msg.encode())
         return mid
 
-    def send_video_message(self, token: str, to_jid: str, url: str, video_id: str, file_name: str, file_size: int, duration: int, width: int, height: int, thumbnail: str, info_text: str = "") -> str:
+    def send_video_message(self, token: str, to_jid: str, url: str, video_id: str,
+                           file_name: str, file_size: int, duration: int,
+                           width: int, height: int, thumbnail: str,
+                           info_text: str = "", reply_to_id: str = "") -> str:
         mid = hashlib.md5(util.generate_token(16).encode()).hexdigest()
-        msg = stanza.video_message(to_jid, url, video_id, file_name, file_size, duration, width, height, thumbnail, msg_id=mid, info_text=info_text)
+        msg = stanza.video_message(to_jid, url, video_id, file_name, file_size,
+                                   duration, width, height, thumbnail,
+                                   msg_id=mid, info_text=info_text, reply_to_id=reply_to_id)
         with self._xmpp_session(token) as sock:
             sock.send(msg.encode())
         return mid
 
-    def send_location_message(self, token: str, to_jid: str, lat: float, lon: float, zoom: float = 11.0, text: str = "") -> str:
+    def send_location_message(self, token: str, to_jid: str, lat: float, lon: float,
+                              zoom: float = 11.0, text: str = "", reply_to_id: str = "") -> str:
         """Envía un mensaje con ubicación adjunta."""
         mid = util.generate_token(8)
-        msg = stanza.location_message(to_jid, lat, lon, zoom, text, msg_id=mid)
+        msg = stanza.location_message(to_jid, lat, lon, zoom, text, msg_id=mid, reply_to_id=reply_to_id)
         with self._xmpp_session(token) as sock:
             sock.send(msg.encode())
         return mid
 
-    def send_event_message(self, token: str, to_jid: str, title: str, start: int, end: int, all_day: bool, ics_data: str, event_id: str = "") -> str:
+    def send_event_message(self, token: str, to_jid: str, title: str, start: int,
+                           end: int, all_day: bool, ics_data: str,
+                           event_id: str = "", reply_to_id: str = "") -> str:
         """Envía un mensaje con evento/calendario adjunto."""
         mid = util.generate_token(8)
-        msg = stanza.event_message(to_jid, event_id, title, start, end, all_day, ics_data, msg_id=mid)
+        msg = stanza.event_message(to_jid, event_id, title, start, end, all_day,
+                                   ics_data, msg_id=mid, reply_to_id=reply_to_id)
         with self._xmpp_session(token) as sock:
             sock.send(msg.encode())
         return mid
@@ -105,9 +129,12 @@ class ToDusMessageMixin:
         with self._xmpp_session(token) as sock:
             sock.send(st.encode())
 
-    def delete_message(self, token: str, to_jid: str, message_id: str, msg_type: str = "c", body: str = "", media_xml: str = "") -> str:
+    def delete_message(self, token: str, to_jid: str, message_id: str,
+                       msg_type: str = "c", body: str = "", media_xml: str = "",
+                       reply_to_id: str = "") -> str:
         """Elimina un mensaje propio."""
-        msg = stanza.delete_message(to_jid, message_id, msg_id=message_id, msg_type=msg_type, body=body, media_xml=media_xml)
+        msg = stanza.delete_message(to_jid, message_id, msg_id=message_id, msg_type=msg_type,
+                                    body=body, media_xml=media_xml, reply_to_id=reply_to_id)
         with self._xmpp_session(token) as sock:
             sock.send(msg.encode())
         return message_id

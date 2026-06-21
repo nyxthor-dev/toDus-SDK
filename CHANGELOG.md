@@ -5,6 +5,31 @@ Todos los cambios notables en este proyecto se documentan en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/),
 y este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.5.3] - 2026-06-21
+
+### Added
+- **Message Queue System**: Nuevo módulo `todus/cache/` con almacenamiento persistente de mensajes en SQLite. Incluye:
+  - `MessageStore`: CRUD thread-safe para mensajes con índices optimizados (status, "to", created_at).
+  - `MessageQueue`: Sistema de cola con reintentos automáticos, callbacks de eventos y backoff exponencial con jitter.
+  - `MessageQueueMixin`: Mixin composable para integrar queue en cualquier cliente.
+  - `ToDusClientWithQueue`: Cliente completo con soporte de queue integrado.
+- **Documentación HTML**: Nueva documentación visual en `documentacion.html` con diseño blanco/rojo, ejemplos terminales Linux/Mac, navegación interactiva y secciones detalladas (Introducción, Inicio Rápido, Instalación, Ejemplos, Características, Mensajería, Message Queue).
+- **Estados de Mensaje**: Implementación completa del ciclo de vida del mensaje (pending → sent → delivered → read/failed).
+- **Callbacks de Evento**: Registro de funciones callback para eventos de mensajes: `on_message_sent`, `on_message_delivered`, `on_message_read`, `on_message_failed`.
+- **Estadísticas de Queue**: Método `get_queue_stats()` para monitoreo en tiempo real de mensajes por estado.
+
+### Changed
+- **Optimización del cliente `ToDusClient2`**: Refactorización elimando ~200 líneas de código duplicado en métodos de envío.
+- **Mejora en `listen_messages`**: Ahora soporta `max_retries` configurable (default 10) con exponential backoff mejorado y mejor logging de errores.
+- **Esquema de persistencia**: Almacenamiento de metadata JSON para campos personalizados en el sistema de queue.
+- **Exports actualizados**: Nuevo `__all__` en `todus/__init__.py` incluyendo `MessageStore`, `Message`, `MessageStatus`, `MessageQueue`, `ToDusClientWithQueue`.
+
+### Fixed
+- **Bug en SQL reserved word**: Corrección del error "sqlite3.OperationalError: near 'to': syntax error" escapando la columna `"to"` en CREATE TABLE e INSERT statements con parámetros posicionales.
+- **Thread-safety mejorada**: Implementación de RLock en todas las operaciones de base de datos del MessageStore para evitar condiciones de carrera.
+- **Limpieza de recursos**: Método `__del__` en `ToDusClientWithQueue` para parar correctamente el worker thread de reintentos.
+- **Eliminación de mensajes antiguos**: Implementación de `clear_old_messages()` para limpiar mensajes con más de 30 días automáticamente.
+
 ## [1.5.2] - 2026-06-20
 
 ### Added
