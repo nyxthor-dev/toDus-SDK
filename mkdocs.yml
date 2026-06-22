@@ -1,41 +1,62 @@
 # mkdocs.yml
 site_name: ToDus SDK para Python
-site_description: Documentación oficial del SDK de ToDus para Python
+site_description: SDK oficial de ToDus para Python - Mensajería, grupos y más
 site_author: Comunidad ToDus
-repo_url: https://github.com/tu-usuario/todus-sdk
-repo_name: todus-sdk
+site_url: https://vm1008079-web.github.io/toDus-API/
+repo_url: https://github.com/vm1008079-web/toDus-API
+repo_name: toDus-API
 edit_uri: edit/main/docs/
 
 theme:
   name: material
   language: es
+  
+  # === PALETA DE COLORES ===
   palette:
+    # Modo claro
     - scheme: default
-      primary: indigo
-      accent: indigo
+      primary: indigo        # Color principal (indigo, blue, cyan, teal, green, lime, amber, orange, deep-orange, red, pink, purple, deep-purple)
+      accent: indigo         # Color de acento
       toggle:
         icon: material/brightness-7
         name: Cambiar a modo oscuro
+    
+    # Modo oscuro
     - scheme: slate
       primary: indigo
       accent: indigo
       toggle:
         icon: material/brightness-4
         name: Cambiar a modo claro
+  
+  # === FUENTES ===
+  font:
+    text: Roboto
+    code: JetBrains Mono
+  
+  # === ICONOS ===
+  icon:
+    logo: material/message-text   # Logo en la barra superior
+    repo: fontawesome/brands/github
+  
+  # === CARACTERÍSTICAS ===
   features:
-    - navigation.instant
-    - navigation.tracking
-    - navigation.sections
-    - navigation.expand
-    - navigation.indexes
-    - toc.follow
-    - content.code.annotate
-    - content.code.copy
-    - search.highlight
-    - search.share
+    - navigation.instant          # Navegación instantánea sin recargar
+    - navigation.tracking         # Sigue la sección actual en la URL
+    - navigation.sections         # Secciones expandidas
+    - navigation.expand           # Expande todos los niveles
+    - navigation.indexes          # Índices en la navegación
+    - navigation.top              # Botón para volver arriba
+    - toc.follow                  # Tabla de contenido sigue al leer
+    - search.highlight            # Resalta resultados de búsqueda
+    - search.share                # Compartir resultados de búsqueda
+    - content.code.annotate       # Anotaciones en código
+    - content.code.copy           # Botón para copiar código
 
+# === PLUGINS ===
 plugins:
-  - search
+  - search:
+      lang: es
   - mkdocstrings:
       handlers:
         python:
@@ -46,6 +67,7 @@ plugins:
             merge_init_into_class: true
   - autorefs
 
+# === EXTENSIONES DE MARKDOWN ===
 markdown_extensions:
   - admonition
   - attr_list
@@ -59,7 +81,10 @@ markdown_extensions:
   - pymdownx.tabbed:
       alternate_style: true
   - tables
+  - footnotes
+  - def_list
 
+# === NAVEGACIÓN ===
 nav:
   - Inicio: index.md
   - Instalación: installation.md
@@ -77,3 +102,17 @@ nav:
       - Utilidades: api/utils.md
       - Tipos y Constantes: api/types_constants.md
       - Errores: api/errors.md
+
+# === CSS Y JS EXTRA ===
+extra_css:
+  - stylesheets/extra.css
+
+# === SOCIAL (opcional) ===
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/vm1008079-web/toDus-API
+      name: Repositorio en GitHub
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/todus-sdk/
+      name: PyPI
