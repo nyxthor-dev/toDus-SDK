@@ -6,43 +6,37 @@ on:
       - main
       - master
 
-# Permisos necesarios para Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Concurrency para evitar despliegues simultáneos
 concurrency:
   group: "pages"
   cancel-in-progress: false
 
 jobs:
-  # Trabajo de construcción
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Clonar repositorio
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6          # Actualizado
 
       - name: Configurar Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6      # Actualizado
         with:
           python-version: '3.11'
 
-      - name: Instalar dependencias de documentación
+      - name: Instalar dependencias
         run: |
           pip install mkdocs mkdocs-material mkdocstrings mkdocstrings-python
 
-      - name: Construir sitio estático
+      - name: Construir sitio
         run: mkdocs build
 
-      - name: Subir artefacto de Pages
+      - name: Subir artefacto
         uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./site
 
-  # Trabajo de despliegue
   deploy:
     environment:
       name: github-pages
