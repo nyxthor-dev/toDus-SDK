@@ -5,6 +5,15 @@ on:
     branches:
       - main
       - master
+    # Solo ejecutar cuando cambien archivos de documentación
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - '.github/workflows/docs.yml'
+      - 'todus/**/*.py'  # Opcional: si cambias código, se actualiza la doc
+
+  # También permite ejecución manual desde la interfaz
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,8 +25,38 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Trabajo para verificar si hay cambios relevantes
+  check-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      run-deploy: ${{ steps.check.outputs.run-deploy }}
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Verificar cambios en archivos relevantes
+        id: check
+        run: |
+          # Obtener lista de archivos cambiados
+          CHANGED_FILES=$(git diff --name-only HEAD^ HEAD)
+          echo "Archivos cambiados: $CHANGED_FILES"
+          
+          # Verificar si hay cambios en docs/, mkdocs.yml o código fuente
+          if echo "$CHANGED_FILES" | grep -qE "^(docs/|mkdocs.yml|todus/.*\.py|\.github/workflows/docs.yml)"; then
+            echo "run-deploy=true" >> $GITHUB_OUTPUT
+            echo "✅ Cambios detectados en documentación"
+          else
+            echo "run-deploy=false" >> $GITHUB_OUTPUT
+            echo "⏭️ Sin cambios en documentación, omitiendo despliegue"
+          fi
+
+  # Trabajo de construcción
   build:
     runs-on: ubuntu-latest
+    needs: check-changes
+    if: needs.check-changes.outputs.run-deploy == 'true'
     steps:
       - name: Clonar repositorio
         uses: actions/checkout@v6
@@ -32,13 +71,14 @@ jobs:
           pip install mkdocs mkdocs-material mkdocstrings mkdocstrings-python
 
       - name: Construir sitio
-        run: mkdocs build
+        run: mkdocs build --clean
 
       - name: Subir artefacto
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./site   # <--- AQUÍ está la corrección
+          path: ./site
 
+  # Trabajo de despliegue
   deploy:
     environment:
       name: github-pages
