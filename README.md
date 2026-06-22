@@ -36,7 +36,6 @@
 
 <ul>
   <li><a href="https://github.com/vm1008079-web" target="_blank"><strong>OrionWolf</strong></a> — Creador y mantenedor principal</li>
-  <li><a href="https://github.com/ElJoker63" target="_blank"><strong>ElJoker63</strong></a> — Desarrollador y colaborador activo</li>
 </ul>
 
 <p>¿Quieres aparecer aquí? ¡Las contribuciones son bienvenidas! Revisa nuestra <a href="CONTRIBUTING.md">guía de contribución</a> para empezar.</p>
