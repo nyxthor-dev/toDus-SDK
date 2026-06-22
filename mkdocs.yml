@@ -1,0 +1,79 @@
+# mkdocs.yml
+site_name: ToDus SDK para Python
+site_description: Documentación oficial del SDK de ToDus para Python
+site_author: Comunidad ToDus
+repo_url: https://github.com/tu-usuario/todus-sdk
+repo_name: todus-sdk
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  language: es
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Cambiar a modo oscuro
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Cambiar a modo claro
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.expand
+    - navigation.indexes
+    - toc.follow
+    - content.code.annotate
+    - content.code.copy
+    - search.highlight
+    - search.share
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_root_heading: true
+            show_source: false
+            merge_init_into_class: true
+  - autorefs
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+
+nav:
+  - Inicio: index.md
+  - Instalación: installation.md
+  - Inicio Rápido: quickstart.md
+  - Cliente ToDus:
+      - Visión General: client/overview.md
+      - Mixins (API Completa): client/mixins.md
+  - Cola y Persistencia:
+      - Visión General: cache/overview.md
+      - Cliente con Cola: cache/queue_client.md
+  - Grupos MUC Light: groups.md
+  - Stanzas (Generación XML): stanzas/overview.md
+  - Referencia API:
+      - Parser: api/parser.md
+      - Utilidades: api/utils.md
+      - Tipos y Constantes: api/types_constants.md
+      - Errores: api/errors.md
