@@ -3,8 +3,6 @@
 <p align="center">
   <a href="https://pypi.org/project/toDus-API/"><img src="https://img.shields.io/pypi/v/todus-api" alt="PyPI"></a>
   <a href="https://pypi.org/project/toDus-API/"><img src="https://img.shields.io/pypi/pyversions/todus-api" alt="Python"></a>
-  <a href="https://github.com/vm1008079-web/toDus-API/actions/workflows/ci.yml"><img src="https://github.com/vm1008079-web/toDus-API/actions/workflows/ci.yml/badge.svg?branch=main" alt="Tests"></a>
-  <a href="https://github.com/vm1008079-web/toDus-API/actions/workflows/pypi-publish.yml"><img src="https://github.com/vm1008079-web/toDus-API/actions/workflows/pypi-publish.yml/badge.svg?branch=main" alt="Publish"></a>
   <a href="https://vm1008079-web.github.io/toDus-API"><img src="https://img.shields.io/badge/docs-MkDocs-blueviolet" alt="Docs"></a>
   <a href="https://github.com/vm1008079-web/toDus-API/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License"></a>
 </p>
