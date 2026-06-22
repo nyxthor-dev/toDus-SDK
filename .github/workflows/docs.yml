@@ -20,10 +20,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Clonar repositorio
-        uses: actions/checkout@v6          # Actualizado
+        uses: actions/checkout@v6
 
       - name: Configurar Python
-        uses: actions/setup-python@v6      # Actualizado
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
@@ -36,6 +36,8 @@ jobs:
 
       - name: Subir artefacto
         uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./site   # <--- AQUÍ está la corrección
 
   deploy:
     environment:
