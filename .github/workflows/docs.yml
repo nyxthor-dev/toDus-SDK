@@ -1,0 +1,55 @@
+name: Deploy MkDocs a GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+# Permisos necesarios para Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Concurrency para evitar despliegues simultáneos
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  # Trabajo de construcción
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias de documentación
+        run: |
+          pip install mkdocs mkdocs-material mkdocstrings mkdocstrings-python
+
+      - name: Construir sitio estático
+        run: mkdocs build
+
+      - name: Subir artefacto de Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./site
+
+  # Trabajo de despliegue
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Desplegar a GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
