@@ -37,20 +37,6 @@ def on_message(msg):
 
 client.listen_messages(client.token, on_message)</code></pre>
 
-<h2>📚 Navegación</h2>
-<p>Usa el menú lateral para explorar cada módulo:</p>
-<ul>
-    <li><a href="installation.md">Instalación</a> – Requisitos y configuración.</li>
-    <li><a href="quickstart.md">Inicio Rápido</a> – Ejemplos básicos y avanzados.</li>
-    <li><a href="client/overview.md">Cliente ToDus</a> – API completa de mensajería, archivos y perfil.</li>
-    <li><a href="cache/overview.md">Cola y Persistencia</a> – Cola de mensajes con SQLite y reintentos.</li>
-    <li><a href="groups.md">Grupos</a> – Manejo de grupos MUC Light.</li>
-    <li><a href="api/parser.md">Referencia API</a> – Parser, utilidades, tipos y errores.</li>
-</ul>
-
 <h2>🤝 Contribuir</h2>
 <p>El SDK es de código abierto. Las contribuciones son bienvenidas.<br>
 Visita nuestro repositorio en <a href="https://github.com/tu-usuario/todus-sdk">GitHub</a> para reportar issues o enviar pull requests.</p>
-
-<h2>📄 Licencia</h2>
-<p>MIT License. Ver archivo <code>LICENSE</code> para más detalles.</p>
