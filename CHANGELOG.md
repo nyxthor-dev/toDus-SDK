@@ -5,6 +5,34 @@ Todos los cambios notables en este proyecto se documentan en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/),
 y este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.5.4] - 2026-06-26
+
+### Added
+- **Event Bus y Sistema de Filtros Avanzados**: Nuevo módulo `todus/events/` con dispatcher centralizado de eventos. Incluye:
+  - `EventBus`: Gestor de eventos thread-safe con prioridades y propagation control.
+  - `Filter` + `build_filter`: Filtros declarativos por `from_phone`, `contains_keyword`, `msg_type`, `is_group`, `group_id`, `regex` y `custom`.
+  - Decorador `@client.events.on(event_type, **filters)` para registrar handlers limpiamente.
+  - Soporte para handlers wildcard (`'*'`) que capturan todos los eventos.
+  - Despacho automático de 7 tipos de eventos: `message`, `presence`, `receipt`, `iq`, `tdack`, `deleted`, `chat_state`.
+  - Método `handle_parsed_stanza(msg, *, sock, callback)` para manejar stanzas parseadas.
+- **Documentación de Event Bus**: Nueva sección `docs/events/overview.md` con guía completa y ejemplos.
+
+### Changed
+- **Integración de EventBus en cliente**: `ToDusClient` ahora inicializa `self.events = EventBus()` automáticamente.
+- **Mejora en `_listen_loop`**: Refactorizada para usar `handle_parsed_stanza` y despachar eventos a `EventBus`.
+- **Actualización de mkdocs.yml**: Agregada sección "🎯 Event Bus y Filtros" en navegación.
+- **Ejemplos avanzados**: Nuevo ejemplo de "Bot Reactivo con EventBus" en `examples_advanced.md`.
+
+### Fixed
+- **Thread-safety en dispatch**: EventBus usa `RLock` para operaciones thread-safe.
+- **Manejo robusto de excepciones**: Si un filtro o handler falla, se registra pero no rompe la propagación.
+
+### Tests Added
+- `tests/test_events.py`: 5 tests para filtros, prioridades, wildcard y unsubscribe.
+- `tests/test_client_events.py`: Integración de eventos en cliente (7 tipos de eventos).
+
+---
+
 ## [1.5.3] - 2026-06-21
 
 ### Added
@@ -236,25 +264,3 @@ y este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 - Envío y recepción de mensajes de texto
 - Manejo de excepciones personalizadas
 - Constantes del protocolo ToDus
-
-[1.4.7]: https://github.com/ElJoker63/toDus-API/compare/v1.4.6...v1.4.7
-[1.4.6]: https://github.com/ElJoker63/toDus-API/compare/v1.4.5...v1.4.6
-[1.4.5]: https://github.com/ElJoker63/toDus-API/compare/v1.4.4...v1.4.5
-[1.4.4]: https://github.com/ElJoker63/toDus-API/compare/v1.4.3...v1.4.4
-[1.4.3]: https://github.com/ElJoker63/toDus-API/compare/v1.4.2...v1.4.3
-[1.4.2]: https://github.com/ElJoker63/toDus-API/compare/v1.4.1...v1.4.2
-[1.4.1]: https://github.com/ElJoker63/toDus-API/compare/v1.4.0...v1.4.1
-[1.4.0]: https://github.com/ElJoker63/toDus-API/compare/v1.3.9...v1.4.0
-[1.3.9]: https://github.com/ElJoker63/toDus-API/compare/v1.3.8...v1.3.9
-[1.3.8]: https://github.com/ElJoker63/toDus-API/compare/v1.3.7...v1.3.8
-[1.3.7]: https://github.com/ElJoker63/toDus-API/compare/v1.3.6...v1.3.7
-[1.3.6]: https://github.com/ElJoker63/toDus-API/compare/v1.3.5...v1.3.6
-[1.3.5]: https://github.com/ElJoker63/toDus-API/compare/v1.3.4...v1.3.5
-[1.3.4]: https://github.com/ElJoker63/toDus-API/compare/v1.3.3...v1.3.4
-[1.3.3]: https://github.com/ElJoker63/toDus-API/compare/v1.3.2...v1.3.3
-[1.3.2]: https://github.com/ElJoker63/toDus-API/compare/v1.3.1...v1.3.2
-[1.3.1]: https://github.com/ElJoker63/toDus-API/compare/v1.3.0...v1.3.1
-[1.3.0]: https://github.com/ElJoker63/toDus-API/compare/v1.2.0...v1.3.0
-[1.2.0]: https://github.com/ElJoker63/toDus-API/compare/v1.1.0...v1.2.0
-[1.1.0]: https://github.com/ElJoker63/toDus-API/compare/v1.0.0...v1.1.0
-[1.0.0]: https://github.com/ElJoker63/toDus-API/releases/tag/v1.0.0

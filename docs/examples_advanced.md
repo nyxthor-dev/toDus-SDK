@@ -2,6 +2,58 @@
 
 Ejemplos completos y patrones recomendados para casos de uso avanzados.
 
+## 0. Bot Reactivo con EventBus
+
+Usa el **Event Bus** para código más limpio y reactivo:
+
+```python
+from todus import ToDusClient2
+
+client = ToDusClient2(phone_number="5312345678", password="token")
+
+# Handler crítico: bloquear spam
+@client.events.on("message", priority=100, contains_keyword="spam")
+def block_spam(event):
+    print(f"🚫 Bloqueado spam de {event['from']}")
+    return True  # ← detiene propagación
+
+# Handler: responder a amigos
+@client.events.on("message", from_phone="5387654321", priority=50)
+def handle_friend(event):
+    print(f"👋 Amigo: {event['body']}")
+    # responder automáticamente
+    client.send_message("5387654321", "¡Hola!")
+
+# Handler: procesar comandos
+@client.events.on("message", regex=r"^!(\w+)", priority=40)
+def handle_command(event):
+    import re
+    match = re.match(r"^!(\w+)", event['body'])
+    if match:
+        cmd = match.group(1)
+        print(f"Comando: {cmd}")
+
+# Handler: logging centralizado
+@client.events.on("*", priority=1)  # wildcard
+def log_everything(event):
+    event_type = event.get("_event_type")
+    sender = event.get("from", "?")
+    print(f"[{event_type}] {sender}")
+
+# Iniciar escucha
+client.login()
+print("🤖 Bot reactivo activo...")
+client.listen_messages(callback=lambda e: None)
+```
+
+**Ventajas:**
+- ✅ Código limpio con decoradores
+- ✅ Prioridades automáticas
+- ✅ Filtros declarativos
+- ✅ Manejo centralizado de eventos
+
+---
+
 ## 1. Bot Interactivo con Comandos
 
 ```python

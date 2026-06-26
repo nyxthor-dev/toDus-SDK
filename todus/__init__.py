@@ -21,7 +21,7 @@ from .parser import IncrementalParser, parse_tdack
 from .cache import MessageStore, Message, MessageStatus, MessageQueue
 from .events import EventBus
 
-__version__ = "1.5.2"  # Actualizado para reflejar los cambios
+__version__ = "1.5.4"  # EventBus + Message Queue + Scheduler
 
 __all__ = [
     "ToDusClient",

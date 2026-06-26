@@ -143,6 +143,7 @@ nav:
       - 🔐 Autenticación: authentication.md
       - 🛠️ Solución de Problemas: troubleshooting.md
   - 🎯 Características Avanzadas:
+      - 🎯 Event Bus y Filtros: events/overview.md
       - 💾 Cola Persistente:
           - 📌 Visión General: cache/overview.md
           - ⚙️ Cliente con Cola: cache/queue_client.md

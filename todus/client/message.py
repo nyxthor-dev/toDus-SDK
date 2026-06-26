@@ -186,45 +186,11 @@ class ToDusMessageMixin:
                 stanzas = self._xml_parser.feed(response)
 
                 for msg in stanzas:
-                    is_content = (
-                        msg.get("body")
-                        or msg.get("url")
-                        or msg.get("contact_id")
-                        or msg.get("sticker_id")
-                        or msg.get("video_url")
-                        or msg.get("buttons")
-                        or msg.get("location_id")
-                    )
-                    
-                    if is_content and not msg.get("deleted"):
-                        msg_id = msg.get("id", "")
-                        msg_from = msg.get("from", "")
-                        if msg_id and msg_from:
-                            try:
-                                receipt = stanza.receipt(msg_from, msg_id)
-                                sock.send(receipt.encode())
-                            except Exception:
-                                pass
-                    
-                    if (
-                        is_content
-                        or msg.get("chat_state")
-                        or msg.get("receipt")
-                        or msg.get("deleted")
-                    ):
-                        # Primero despachar al event bus si existe
-                        try:
-                            if hasattr(self, "events") and self.events is not None:
-                                try:
-                                    self.events.dispatch("message", msg)
-                                except Exception:
-                                    logger.exception("Error despachando evento 'message'")
-                        except Exception:
-                            # protección adicional por si `events` causa fallos
-                            logger.exception("Error comprobando `events` en cliente")
-
-                        # Llamada al callback tradicional
-                        callback(msg)
+                    # usar helper para manejar cada stanza parseada
+                    try:
+                        self.handle_parsed_stanza(msg, sock=sock, callback=callback)
+                    except Exception:
+                        logger.exception("Error manejando stanza parseada")
 
         finally:
             stop_event.set()
@@ -239,3 +205,107 @@ class ToDusMessageMixin:
                 sock.send(stanza.ping(ping_id).encode())
             except OSError:
                 break
+
+    def handle_parsed_stanza(self, msg: dict, *, sock=None, callback: Callable[[dict], None] | None = None) -> list[str]:
+        """Maneja una stanza ya parseada.
+
+        - Envía receipts si corresponde (requiere `sock`).
+        - Despacha eventos al `EventBus` para tipos: message, presence, iq, tdack,
+          receipt, deleted, chat_state.
+        - Llama al `callback` si está provisto.
+
+        Retorna la lista de tipos de evento despachados.
+        """
+        dispatched = []
+
+        # determinar si es 'mensaje' (contenido multimedia/texto)
+        is_content = (
+            msg.get("body")
+            or msg.get("url")
+            or msg.get("contact_id")
+            or msg.get("sticker_id")
+            or msg.get("video_url")
+            or msg.get("buttons")
+            or msg.get("location_id")
+        )
+
+        # enviar receipt para mensajes con contenido si no es borrado
+        if is_content and not msg.get("deleted"):
+            msg_id = msg.get("id", "")
+            msg_from = msg.get("from", "")
+            if msg_id and msg_from and sock is not None:
+                try:
+                    receipt = stanza.receipt(msg_from, msg_id)
+                    sock.send(receipt.encode())
+                except Exception:
+                    logger.exception("Error enviando receipt")
+
+        # Despachar tipos básicos
+        try:
+            if hasattr(self, "events") and self.events is not None:
+                # message
+                if is_content or msg.get("chat_state") or msg.get("deleted"):
+                    try:
+                        self.events.dispatch("message", msg)
+                        dispatched.append("message")
+                    except Exception:
+                        logger.exception("Error despachando 'message'")
+
+                # presence
+                if "status" in msg or "show" in msg or "priority" in msg:
+                    try:
+                        self.events.dispatch("presence", msg)
+                        dispatched.append("presence")
+                    except Exception:
+                        logger.exception("Error despachando 'presence'")
+
+                # iq
+                if "query" in msg or "error" in msg or msg.get("type") == "iq":
+                    try:
+                        self.events.dispatch("iq", msg)
+                        dispatched.append("iq")
+                    except Exception:
+                        logger.exception("Error despachando 'iq'")
+
+                # tdack (acknowledgements)
+                if msg.get("type") == "tdack" or "message_id" in msg and msg.get("type") == "tdack":
+                    try:
+                        self.events.dispatch("tdack", msg)
+                        dispatched.append("tdack")
+                    except Exception:
+                        logger.exception("Error despachando 'tdack'")
+
+                # receipt (deliver/read)
+                if msg.get("receipt"):
+                    try:
+                        self.events.dispatch("receipt", msg)
+                        dispatched.append("receipt")
+                    except Exception:
+                        logger.exception("Error despachando 'receipt'")
+
+                # deleted
+                if msg.get("deleted"):
+                    try:
+                        self.events.dispatch("deleted", msg)
+                        dispatched.append("deleted")
+                    except Exception:
+                        logger.exception("Error despachando 'deleted'")
+
+                # chat_state
+                if msg.get("chat_state"):
+                    try:
+                        self.events.dispatch("chat_state", msg)
+                        dispatched.append("chat_state")
+                    except Exception:
+                        logger.exception("Error despachando 'chat_state'")
+        except Exception:
+            logger.exception("Error durante dispatch de eventos")
+
+        # finalmente, llamar al callback tradicional
+        if callback:
+            try:
+                callback(msg)
+            except Exception:
+                logger.exception("Error en callback del usuario")
+
+        return dispatched
