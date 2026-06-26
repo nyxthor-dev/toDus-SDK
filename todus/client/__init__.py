@@ -23,6 +23,7 @@ from .call import ToDusCallMixin
 from ..errors import AuthenticationError, TokenExpiredError, ConnectionLostError
 from ..types import FileType
 from .. import util
+from ..events import EventBus
 
 logger = logging.getLogger("todus")
 
@@ -42,7 +43,12 @@ class ToDusClient(
     ToDusClientBase,
 ):
     """Cliente stateless para la API de ToDus unificado."""
-    pass
+
+    def __init__(self, *args, **kwargs):
+        # Llamar al constructor de la base (mixins no suelen implementar __init__)
+        super().__init__(*args, **kwargs)
+        # Event bus para suscriptores locales
+        self.events = EventBus()
 
 
 class ToDusClient2(ToDusClient):

@@ -212,6 +212,18 @@ class ToDusMessageMixin:
                         or msg.get("receipt")
                         or msg.get("deleted")
                     ):
+                        # Primero despachar al event bus si existe
+                        try:
+                            if hasattr(self, "events") and self.events is not None:
+                                try:
+                                    self.events.dispatch("message", msg)
+                                except Exception:
+                                    logger.exception("Error despachando evento 'message'")
+                        except Exception:
+                            # protección adicional por si `events` causa fallos
+                            logger.exception("Error comprobando `events` en cliente")
+
+                        # Llamada al callback tradicional
                         callback(msg)
 
         finally:

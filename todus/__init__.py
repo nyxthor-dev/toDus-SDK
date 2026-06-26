@@ -19,6 +19,7 @@ from .errors import (
 from .util import normalize_phone, build_jid, generate_token, jwt_decode_payload, timestamp_ms, format_size
 from .parser import IncrementalParser, parse_tdack
 from .cache import MessageStore, Message, MessageStatus, MessageQueue
+from .events import EventBus
 
 __version__ = "1.5.2"  # Actualizado para reflejar los cambios
 
@@ -57,4 +58,5 @@ __all__ = [
     "Message",
     "MessageStatus",
     "MessageQueue",
+    "EventBus",
 ]
