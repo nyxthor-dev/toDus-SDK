@@ -1,42 +1,79 @@
-<!-- docs/index.md -->
-<h1>ToDus SDK para Python</h1>
+# 🌟 toDus SDK para Python
 
-<p>Bienvenido a la documentación oficial del <strong>ToDus SDK</strong>, la biblioteca Python que te permite interactuar con la plataforma de mensajería y redes sociales cubana <strong>ToDus</strong>.</p>
-<p>Este SDK implementa los protocolos XMPP y HTTP de ToDus, ofreciendo una API moderna, asíncrona y fácil de usar para desarrollar bots, aplicaciones de escritorio, integraciones y automatizaciones.</p>
+Bienvenido a la documentación oficial del **toDus SDK**, la biblioteca Python más completa para interactuar con **toDus**, la plataforma de mensajería instantánea cubana.
 
-<h2>🚀 Características Principales</h2>
-<ul>
-    <li><strong>Autenticación completa</strong> (contraseña o código SMS).</li>
-    <li><strong>Mensajería privada</strong> con soporte para texto, imágenes, videos, stickers, ubicación, contactos y eventos.</li>
-    <li><strong>Mensajería en grupos</strong> (MUC Light) con administración de miembros y roles.</li>
-    <li><strong>Canales públicos y privados</strong> con suscripción y publicación.</li>
-    <li><strong>Estados/Historias</strong> (StatusManager) con seguimiento de usuarios.</li>
-    <li><strong>Subida y descarga de archivos</strong> con seguimiento de progreso.</li>
-    <li><strong>Cola de mensajes persistente</strong> con SQLite, reintentos exponenciales y callbacks.</li>
-    <li><strong>Soporte para proxies</strong> HTTP, SOCKS4 y SOCKS5.</li>
-    <li><strong>Reconexión automática</strong> y Keepalive.</li>
-</ul>
+Este SDK implementa los protocolos **XMPP y HTTP** de toDus, ofreciendo una API moderna, fácil de usar y completamente asíncrona.
 
-<h2>📦 Instalación Rápida</h2>
-<pre><code class="language-bash">pip install todus-sdk</code></pre>
+---
 
-<h2>🧪 Primeros Pasos</h2>
-<pre><code class="language-python">from todus import ToDusClientWithQueue
+## ⚡ Características Destacadas
 
-client = ToDusClientWithQueue("5312345678", "mi_contraseña")
+- 📱 Mensajería completa (texto, imágenes, videos, stickers, ubicación, contactos, eventos)
+- 👥 Soporte para grupos MUC Light con administración de miembros
+- 💾 Cola de mensajes persistente con SQLite y reintentos automáticos
+- 🌐 Canales públicos/privados con suscripción
+- 📸 Estados/Historias con seguimiento de usuarios
+- 🔐 Autenticación con contraseña o código SMS
+- 🔗 Soporte para proxies (HTTP, SOCKS4/5)
+- ♻️ Reconexión automática y Keep-alive
+- 📊 Callbacks para eventos y estadísticas en tiempo real
+
+---
+
+## 🚀 Inicio Rápido
+
+### Instalación
+```bash
+pip install todus-sdk
+```
+
+### Tu primer bot
+```python
+from todus import ToDusClientWithQueue
+
+# Crear cliente con cola persistente
+client = ToDusClientWithQueue("5312345678", "tu_contraseña")
 client.login()
 
-# Enviar un mensaje (con cola y reintentos)
-
+# Enviar mensaje
 msg_id = client.send_message_queued("5387654321", "¡Hola mundo!")
 
-# Escuchar mensajes entrantes
-
+# Escuchar mensajes
 def on_message(msg):
-    print(f"{msg.get('from')}: {msg.get('body')}")
+    sender = msg.get('from').split('@')[0]
+    body = msg.get('body')
+    print(f"📨 {sender}: {body}")
 
-client.listen_messages(client.token, on_message)</code></pre>
+client.listen_messages(client.token, on_message)
+```
 
-<h2>🤝 Contribuir</h2>
-<p>El SDK es de código abierto. Las contribuciones son bienvenidas.<br>
-Visita nuestro repositorio en <a href="https://github.com/tu-usuario/todus-sdk">GitHub</a> para reportar issues o enviar pull requests.</p>
+---
+
+## 📚 Documentación
+
+| Sección | Descripción |
+|---------|------------|
+| [⚡ Inicio Rápido](quickstart.md) | Tutorial paso a paso |
+| [🔐 Autenticación](authentication.md) | SMS vs Contraseña |
+| [📝 Mensajería](client/overview.md) | API de mensajes |
+| [👥 Grupos](groups.md) | Manejo de MUC Light |
+| [💾 Cola Persistente](cache/overview.md) | Entrega garantizada |
+| [🔧 Solución de Problemas](troubleshooting.md) | Errores comunes |
+| [💡 Ejemplos Avanzados](examples_advanced.md) | Patrones reales |
+
+---
+
+## 🤝 Comunidad
+
+- 🐛 [Reportar bugs](https://github.com/vm1008079-web/toDus-API/issues)
+- 💬 [Discusiones](https://github.com/vm1008079-web/toDus-API/discussions)
+- 🤝 [Contribuir](contributing.md)
+- 📝 [CHANGELOG](changelog.md)
+
+---
+
+## ⚖️ Licencia
+
+Este proyecto está bajo la licencia **MIT**. Puedes usarlo libremente.
+
+**¡Feliz codificación! 🎉**

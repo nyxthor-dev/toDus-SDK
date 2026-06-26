@@ -1,12 +1,17 @@
 # mkdocs.yml
+# ============================================
+# CONFIGURACIÓN DE DOCUMENTACIÓN TODUS SDK
+# ============================================
+
 site_name: ToDus SDK para Python
-site_description: SDK oficial de ToDus para Python - Mensajería, grupos y más
+site_description: Cliente Python oficial para la plataforma de mensajería ToDus
 site_author: Comunidad ToDus
 site_url: https://vm1008079-web.github.io/toDus-API/
 repo_url: https://github.com/vm1008079-web/toDus-API
 repo_name: toDus-API
 edit_uri: edit/main/docs/
 
+# === CONFIGURACIÓN DEL TEMA ===
 theme:
   name: material
   language: es
@@ -15,15 +20,15 @@ theme:
   palette:
     # Modo claro
     - scheme: default
-      primary: indigo        # Color principal (indigo, blue, cyan, teal, green, lime, amber, orange, deep-orange, red, pink, purple, deep-purple)
-      accent: indigo         # Color de acento
+      primary: blue
+      accent: indigo
       toggle:
         icon: material/brightness-7
         name: Cambiar a modo oscuro
     
     # Modo oscuro
     - scheme: slate
-      primary: indigo
+      primary: blue
       accent: indigo
       toggle:
         icon: material/brightness-4
@@ -36,27 +41,50 @@ theme:
   
   # === ICONOS ===
   icon:
-    logo: material/message-text   # Logo en la barra superior
+    logo: material/message-text
     repo: fontawesome/brands/github
+    admonition:
+      note: octicons/info-16
+      abstract: octicons/checklist-16
+      info: octicons/info-16
+      tip: octicons/light-bulb-16
+      success: octicons/check-16
+      question: octicons/question-16
+      warning: octicons/alert-16
+      failure: octicons/x-circle-16
+      danger: octicons/zap-16
+      bug: octicons/bug-16
+      example: octicons/beaker-16
+      quote: octicons/quote-16
   
   # === CARACTERÍSTICAS ===
   features:
-    - navigation.instant          # Navegación instantánea sin recargar
-    - navigation.tracking         # Sigue la sección actual en la URL
-    - navigation.sections         # Secciones expandidas
-    - navigation.expand           # Expande todos los niveles
-    - navigation.indexes          # Índices en la navegación
-    - navigation.top              # Botón para volver arriba
-    - toc.follow                  # Tabla de contenido sigue al leer
-    - search.highlight            # Resalta resultados de búsqueda
-    - search.share                # Compartir resultados de búsqueda
-    - content.code.annotate       # Anotaciones en código
-    - content.code.copy           # Botón para copiar código
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - toc.follow
+    - toc.integrate
+    - search.highlight
+    - search.share
+    - search.suggest
+    - content.code.annotate
+    - content.code.copy
+    - content.tabs.link
+    - content.tooltips
+    - header.autohide
 
 # === PLUGINS ===
 plugins:
   - search:
       lang: es
+      separator: '[\s\-_.]+'
   - mkdocstrings:
       handlers:
         python:
@@ -65,7 +93,13 @@ plugins:
             show_root_heading: true
             show_source: false
             merge_init_into_class: true
+            show_bases: true
   - autorefs
+  - macros
+  - minify:
+      minify_html: true
+      minify_css: true
+      minify_js: true
 
 # === EXTENSIONES DE MARKDOWN ===
 markdown_extensions:
@@ -73,46 +107,83 @@ markdown_extensions:
   - attr_list
   - md_in_html
   - pymdownx.details
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.highlight:
       anchor_linenums: true
+      line_spans: __span
   - pymdownx.inlinehilite
-  - pymdownx.snippets
+  - pymdownx.snippets:
+      check_paths: true
   - pymdownx.tabbed:
       alternate_style: true
+      combine_header_slug: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:pymdownx.emoji.twemoji
+      emoji_generator: !!python/name:pymdownx.emoji.to_svg
+  - pymdownx.tasklist:
+      custom_checkbox: true
   - tables
   - footnotes
   - def_list
 
 # === NAVEGACIÓN ===
 nav:
-  - Inicio: index.md
-  - Instalación: installation.md
-  - Inicio Rápido: quickstart.md
-  - Cliente ToDus:
-      - Visión General: client/overview.md
-      - Mixins (API Completa): client/mixins.md
-  - Cola y Persistencia:
-      - Visión General: cache/overview.md
-      - Cliente con Cola: cache/queue_client.md
-  - Grupos MUC Light: groups.md
-  - Stanzas (Generación XML): stanzas/overview.md
-  - Referencia API:
-      - Parser: api/parser.md
-      - Utilidades: api/utils.md
-      - Tipos y Constantes: api/types_constants.md
-      - Errores: api/errors.md
+  - 🏠 Inicio: index.md
+  - 📚 Guías:
+      - ⚡ Instalación: installation.md
+      - 🚀 Inicio Rápido: quickstart.md
+      - 💬 Mensajería: 
+          - 📝 Visión General: client/overview.md
+          - 📋 API Completa: client/mixins.md
+      - 👥 Grupos MUC Light: groups.md
+      - 🔐 Autenticación: authentication.md
+      - 🛠️ Solución de Problemas: troubleshooting.md
+  - 🎯 Características Avanzadas:
+      - 💾 Cola Persistente:
+          - 📌 Visión General: cache/overview.md
+          - ⚙️ Cliente con Cola: cache/queue_client.md
+      - 📦 Stanzas XML:
+          - 📋 Generación de Stanzas: stanzas/overview.md
+      - 💡 Ejemplos Avanzados: examples_advanced.md
+  - 📖 Referencia API:
+      - 🔍 Parser: api/parser.md
+      - ⚙️ Utilidades: api/utils.md
+      - 🏷️ Tipos y Constantes: api/types_constants.md
+      - ⚠️ Manejo de Errores: api/errors.md
+  - 🤝 Contribuir: contributing.md
+  - 📝 CHANGELOG: changelog.md
 
 # === CSS Y JS EXTRA ===
 extra_css:
   - stylesheets/extra.css
 
-# === SOCIAL (opcional) ===
+# === CONFIGURACIÓN EXTRA ===
 extra:
+  # Versión del SDK
+  version:
+    provider: mike
+    default: latest
+  
+  # Soporte para feedback
+  analytics:
+    provider: google
+    property: G-XXXXXXXX  # Reemplazar con tu ID de Google Analytics
+  
+  # Redes sociales
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/vm1008079-web/toDus-API
-      name: Repositorio en GitHub
+      name: Repositorio GitHub
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/todus-sdk/
-      name: PyPI
+      name: Paquete PyPI
+    - icon: fontawesome/brands/twitter
+      link: https://twitter.com/search?q=todus
+      name: Twitter
+  
+  # Información de copyright
+  copyright: "© 2024 toDus SDK. Licencia MIT. Mantenido por la comunidad."
