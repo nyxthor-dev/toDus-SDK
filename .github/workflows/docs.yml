@@ -68,7 +68,8 @@ jobs:
 
       - name: Instalar dependencias
         run: |
-          pip install mkdocs mkdocs-material mkdocstrings mkdocstrings-python
+          pip install --upgrade pip
+          pip install -e ".[dev]"
 
       - name: Construir sitio
         run: mkdocs build --clean
