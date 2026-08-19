@@ -105,7 +105,7 @@ class ToDusFileMixin:
             progress_callback(len(data), len(data))
         return down_url
 
-    def download_file(self, token: str, url: str, path: str) -> int:
+    def download_file(self, token: str, url: str, path: str, max_retries: int = 10) -> int:
         real_url = self.get_real_download_url(token, url)
         headers = {
             "User-Agent": "ToDus " + self.version_name + " HTTP-Download",
@@ -113,6 +113,7 @@ class ToDusFileMixin:
         }
         temp_path = path + ".part"
         size = -1
+        retry_count = 0
         with open(temp_path, "ab") as f:
             pos = f.tell()
             while pos < size or size == -1:
@@ -121,11 +122,21 @@ class ToDusFileMixin:
                 try:
                     with self.session.get(real_url, headers=headers, stream=True, timeout=60) as resp:
                         resp.raise_for_status()
-                        size = pos + int(resp.headers.get("Content-Length", 0))
+                        content_len = int(resp.headers.get("Content-Length", 0))
+                        if pos == 0 and content_len > 0:
+                            size = content_len
+                        elif content_len > 0:
+                            size = pos + content_len
                         for chunk in resp.iter_content(chunk_size=8192):
                             f.write(chunk)
-                except Exception:
-                    time.sleep(5)
+                        retry_count = 0
+                except Exception as e:
+                    retry_count += 1
+                    if retry_count >= max_retries:
+                        raise UploadError(f"Download failed after {max_retries} retries: {e}")
+                    backoff = min(5 * (2 ** (retry_count - 1)), 60)
+                    logger.warning("Download retry %d/%d in %ds: %s", retry_count, max_retries, backoff, e)
+                    time.sleep(backoff)
                 pos = f.tell()
         os.rename(temp_path, path)
         return size
@@ -144,8 +155,7 @@ class ToDusFileMixin:
         final_path = os.path.join(folder, filename)
         temp_path = final_path + ".part"
 
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+        # No eliminar archivo parcial: permite reanudar descargas previas
 
         try:
             test_resp = self.session.head(url, headers=headers, timeout=15, allow_redirects=True)

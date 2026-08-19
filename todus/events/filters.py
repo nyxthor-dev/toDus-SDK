@@ -34,7 +34,17 @@ class Filter:
 
     def matches(self, event: Dict[str, Any]) -> bool:
         if self.from_phone is not None:
-            phone = event.get("from") or event.get("sender_phone") or ""
+            # Intentar múltiples campos para encontrar el teléfono
+            raw = event.get("sender_phone") or ""
+            if not raw:
+                raw = event.get("from") or ""
+            # Extraer teléfono del JID o resource
+            phone = raw
+            if "/" in phone:
+                # Tomar la parte después del / (resource) que suele ser el teléfono
+                phone = phone.split("/")[-1]
+            if "@" in phone:
+                phone = phone.split("@")[0]
             if self.from_phone != phone:
                 return False
 

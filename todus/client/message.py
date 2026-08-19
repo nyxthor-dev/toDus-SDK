@@ -18,6 +18,7 @@ class ToDusMessageMixin:
 
     def send_message(self, token: str, to_jid: str, body: str, reply_to_id: str = "") -> str:
         """Envía mensaje de texto privado. Retorna el msg_id generado."""
+        self._rate_limiter.wait()
         mid = util.generate_token(8)
         msg = stanza.message(to_jid, body, msg_id=mid, reply_to_id=reply_to_id)
         with self._xmpp_session(token) as sock:
@@ -149,18 +150,47 @@ class ToDusMessageMixin:
 
     # --- Recepción de mensajes ---
 
-    def listen_messages(self, token: str, callback: Callable[[dict], None]) -> None:
+    def listen_messages(self, token: str, callback: Callable[[dict], None],
+                          stop_event: threading.Event = None, max_retries: int = 0,
+                          base_backoff: float = 15.0, max_backoff: float = 300.0) -> None:
+        """Escucha mensajes con soporte para detener gracefulfully y backoff exponencial.
+        
+        Args:
+            token: Token de autenticación.
+            callback: Función llamada por cada mensaje recibido.
+            stop_event: threading.Event para detener el loop (opcional).
+            max_retries: Máximo de reintentos de reconexión (0 = infinito).
+            base_backoff: Tiempo base de espera entre reintentos (segundos).
+            max_backoff: Tiempo máximo de espera entre reintentos (segundos).
+        """
+        retry_count = 0
         while True:
+            if stop_event and stop_event.is_set():
+                logger.info("listen_messages detenido por stop_event")
+                break
             try:
                 with self._xmpp_session(token) as sock:
-                    self._listen_loop(sock, callback)
+                    self._listen_loop(sock, callback, stop_event=stop_event)
+                retry_count = 0  # Reset en conexión exitosa
             except TokenExpiredError:
                 raise
-            except (ConnectionLostError, OSError, socket.error):
-                time.sleep(15)
+            except (ConnectionLostError, OSError, socket.error) as e:
+                retry_count += 1
+                if max_retries > 0 and retry_count >= max_retries:
+                    raise ConnectionLostError(f"Max reintentos ({max_retries}) alcanzados") from e
+                backoff = min(base_backoff * (2 ** (retry_count - 1)), max_backoff)
+                # Añadir jitter ±20%
+                import random
+                backoff *= random.uniform(0.8, 1.2)
+                logger.warning("Reconectando en %.1fs (intento %d)%s", backoff, retry_count,
+                              f" / {max_retries}" if max_retries else "")
+                if stop_event:
+                    stop_event.wait(backoff)
+                else:
+                    time.sleep(backoff)
 
-    def _listen_loop(self, sock, callback: Callable[[dict], None]) -> None:
-        stop_event = threading.Event()
+    def _listen_loop(self, sock, callback: Callable[[dict], None], stop_event: threading.Event = None) -> None:
+        stop_event = stop_event or threading.Event()
         ping_id = util.generate_token(5)
         ka = threading.Thread(
             target=self._keepalive_worker,
@@ -171,7 +201,7 @@ class ToDusMessageMixin:
         self._xml_parser.reset()
 
         try:
-            while True:
+            while not stop_event.is_set():
                 try:
                     response = self._recv_all(sock)
                 except OSError as e:
@@ -188,6 +218,9 @@ class ToDusMessageMixin:
                 for msg in stanzas:
                     # usar helper para manejar cada stanza parseada
                     try:
+                        # Enriquecer mensajes de grupo si hay GroupClient disponible
+                        if msg.get("type") == "gc" and hasattr(self, "_group_client") and self._group_client:
+                            msg = self._group_client.process_group_message(msg)
                         self.handle_parsed_stanza(msg, sock=sock, callback=callback)
                     except Exception:
                         logger.exception("Error manejando stanza parseada")

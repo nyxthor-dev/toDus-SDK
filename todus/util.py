@@ -116,10 +116,21 @@ def get_image_dimensions(data: bytes) -> tuple[int, int]:
 
 
 def generate_blurhash(width: int, height: int) -> str:
-    """Genera un BlurHash simple basado en dimensiones."""
-    # Por ahora devolvemos un hash genérico
-    # En producción usar librería blurhash
-    return "LFE_@w00ay00ay00ay00ay00ay00ay"
+    """Genera un BlurHash simple basado en dimensiones.
+
+    Genera un hash que varía según las dimensiones de la imagen.
+    Para producción completa, usar la librería `blurhash-python`.
+    """
+    import hashlib
+    data = f"{width}x{height}".encode()
+    digest = hashlib.md5(data).digest()
+    chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#$%*+,-.:;=?@[\\]^_{|}~"
+    size_info = chars[40]  # 4x4 grid
+    result = [size_info]
+    for i in range(2, 7):
+        val = digest[i % len(digest)]
+        result.append(chars[val % len(chars)])
+    return "".join(result)
 
 
 def sanitize_filename(filename: str, file_type: int = 0) -> str:

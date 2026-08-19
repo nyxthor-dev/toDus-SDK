@@ -1,9 +1,8 @@
 import logging
-from .base import ToDusClientBase
 from ..stanzas import channels as ch_stanzas
 from ..errors import AuthenticationError
 
-class ToDusChannelMixin(ToDusClientBase):
+class ToDusChannelMixin:
     """Mixin que agrupa las operaciones relacionadas con los canales."""
     
     def create_channel(self, name: str, link: str, public: int = 1, desc: str = "", picture: str = "", subs: list[str] = None) -> str:

@@ -102,7 +102,7 @@ def group_sticker_message(to: str, sticker_id: str, sticker_name: str,
     return (
         f"<m to='{to}' t='gc' i='{mid}' xmlns='jc'>"
         f"<sticker xmlns='sticker:n' i='{sticker_id}' mi='{mid}' "
-        f"n='{name_esc}' f='{pack_esc}' url='' s='0' h='{sticker_hash}' json=''/>"
+        f"n='{name_esc}' f='{pack_esc}' url='' s='0' h='{util.escape_xml(sticker_hash)}' json=''/>"
         f"<k xmlns='x8'/>"
         f"{reply_xml}"
         f"<b/>"
@@ -120,7 +120,7 @@ def group_contact_message(to: str, contact_id: str, contact_name: str,
     return (
         f"<m to='{to}' t='gc' i='{mid}' xmlns='jc'>"
         f"<contact xmlns='contact:n' i='{contact_id}' mi='{mid}' "
-        f"n='{name_esc}' num='{contact_phone}'/>"
+        f"n='{name_esc}' num='{util.escape_xml(contact_phone)}'/>"
         f"<k xmlns='x8'/>"
         f"{reply_xml}"
         f"<b/>"

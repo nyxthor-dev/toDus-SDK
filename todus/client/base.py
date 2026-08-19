@@ -9,6 +9,7 @@ import requests
 import urllib3
 from .. import constants, parser, stanza, util
 from ..errors import ConnectionLostError, TokenExpiredError
+from ..ratelimit import RateLimiter
 
 logger = logging.getLogger("todus")
 
@@ -40,6 +41,7 @@ class ToDusClientBase:
                 "https": self.proxy,
             }
         self._xml_parser = parser.IncrementalParser()
+        self._rate_limiter = RateLimiter(max_ops=30, window_seconds=60)
 
     def _parse_proxy(self, proxy_url: str):
         from urllib.parse import urlparse
@@ -65,6 +67,11 @@ class ToDusClientBase:
                 port = 1080
 
         return proxy_type, parsed.hostname, port, parsed.username, parsed.password
+
+    @property
+    def rate_limiter(self) -> RateLimiter:
+        """Rate limiter para proteger contra bans por spam."""
+        return self._rate_limiter
 
     # --- XMPP Socket ---
 

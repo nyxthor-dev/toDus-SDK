@@ -83,8 +83,8 @@ def stream_close() -> str:
     return "</stream:stream>"
 
 
-def sasl_auth(authstr: bytes) -> str:
-    """SASL PLAIN auth."""
+def sasl_auth(authstr: bytes) -> bytes:
+    """SASL PLAIN auth. Retorna bytes para enviar directamente al socket."""
     return b"<ah xmlns='ah:ns' e='PLAIN'>" + authstr + b"</ah>"
 
 

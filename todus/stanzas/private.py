@@ -158,7 +158,7 @@ def contact_message(to: str, contact_id: str, contact_name: str, contact_phone: 
         f"<m to='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
         f"<k xmlns='x8'/>"
         f"{reply_xml}"
-        f"<contact xmlns='contact:n' i='{contact_id}' mi='{mid}' n='{name_esc}' num='{contact_phone}'/>"
+        f"<contact xmlns='contact:n' i='{contact_id}' mi='{mid}' n='{name_esc}' num='{util.escape_xml(contact_phone)}'/>"
         f"<b/>"
         f"</m>"
     )
@@ -175,7 +175,7 @@ def sticker_message(to: str, sticker_id: str, sticker_name: str, sticker_pack: s
         f"<m to='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
         f"<k xmlns='x8'/>"
         f"{reply_xml}"
-        f"<sticker xmlns='sticker:n' i='{sticker_id}' mi='{mid}' n='{name_esc}' f='{pack_esc}' url='' s='0' h='{sticker_hash}' json=''/>"
+        f"<sticker xmlns='sticker:n' i='{sticker_id}' mi='{mid}' n='{name_esc}' f='{pack_esc}' url='' s='0' h='{util.escape_xml(sticker_hash)}' json=''/>"
         f"<b/>"
         f"</m>"
     )

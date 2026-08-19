@@ -78,11 +78,11 @@ class ToDusAuthMixin:
         data = (
             bytes([0x0A, 0x0A])
             + phone.encode()
-            + bytes([0x12, 0x96, 0x01])
-            + util.generate_token(150).encode()
             + bytes([0x12, len(password_bytes)])
             + password_bytes
-            + bytes([0x1A, len(version_bytes)])
+            + bytes([0x1A, 0x96, 0x01])
+            + util.generate_token(150).encode()
+            + bytes([0x22, len(version_bytes)])
             + version_bytes
         )
         resp = self.session.post(
@@ -94,4 +94,12 @@ class ToDusAuthMixin:
         if resp.status_code == 403:
             raise AuthenticationError("Credenciales invalidas")
         resp.raise_for_status()
-        return "".join([c for c in resp.text if c in string.printable])
+        # Limpiar token: solo caracteres alfanuméricos y puntos válidos para JWT
+        raw = resp.text.strip()
+        token_clean = "".join(
+            c for c in raw
+            if c in string.ascii_letters + string.digits + "._-"
+        )
+        if not token_clean or "." not in token_clean:
+            raise AuthenticationError(f"Token inválido recibido del servidor")
+        return token_clean

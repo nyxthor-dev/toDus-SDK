@@ -99,7 +99,7 @@ def parse_todus_message(stanza: str) -> dict:
             result["has_format"] = True
 
     # Botones interactivos
-    button_pattern = r"<button\s+btn_t='([^']*)'\s+btn_cmd='([^']*)'\s+btn_msg_c='([^']*)'\s+btn_size='([^']*)'/?>"
+    button_pattern = r"<button\s+[^>]*?btn_t='([^']*)'\s+btn_cmd='([^']*)'\s+btn_msg_c='([^']*)'\s+btn_size='([^']*)'[^>]*/?>"
     for btn_match in re.finditer(button_pattern, stanza):
         result["buttons"].append({
             "text": util.unescape_xml(btn_match.group(1)),
@@ -383,7 +383,7 @@ class IncrementalParser:
 
         self._buffer += chunk
         stanzas = []
-        seen_raw = set()
+        seen_ids = set()
 
         patterns = [
             (r"<m\b.*?</m>", parse_todus_message),
@@ -395,11 +395,14 @@ class IncrementalParser:
         for pattern, parser_fn in patterns:
             for match in re.finditer(pattern, self._buffer, re.DOTALL):
                 stanza_str = match.group(0)
-                if stanza_str in seen_raw:
-                    continue
-                seen_raw.add(stanza_str)
                 try:
                     parsed = parser_fn(stanza_str)
+                    # Deduplicar por ID de mensaje (no por string completo)
+                    msg_id = parsed.get("id", "")
+                    if msg_id and msg_id in seen_ids:
+                        continue
+                    if msg_id:
+                        seen_ids.add(msg_id)
                     stanzas.append(parsed)
                 except Exception:
                     pass

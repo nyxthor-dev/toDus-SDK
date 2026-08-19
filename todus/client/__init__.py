@@ -76,11 +76,32 @@ class ToDusClient2(ToDusClient):
         return phone, authstr
 
     def _is_group_target(self, target: str) -> bool:
-        """Detecta si el target es un group_id en lugar de un teléfono."""
+        """Detecta si el target es un group_id en lugar de un teléfono.
+        
+        Se considera teléfono si:
+        - Es un string de solo dígitos
+        - Tiene entre 8 y 15 caracteres
+        - Empieza con '53' (Cuba) o '+' seguido de código de país
+        
+        Cualquier otra cosa (group IDs alfanuméricos, JIDs, etc.) se trata como grupo.
+        """
         if not target:
             return False
-        # Los teléfonos cubanos en ToDus son 10 dígitos empezando por 53
-        return not (target.isdigit() and len(target) == 10 and target.startswith("53"))
+        # Limpiar formato: quitar +, espacios, guiones
+        clean = target.lstrip("+").replace(" ", "").replace("-", "")
+        if clean.isdigit():
+            # Teléfono cubano: 10 dígitos empezando por 53
+            if len(clean) == 10 and clean.startswith("53"):
+                return False
+            # Teléfono con prefijo internacional: hasta 15 dígitos
+            if 8 <= len(clean) <= 15:
+                return False
+        # Si contiene '@' es un JID (grupo o usuario)
+        if "@" in target:
+            # Los JIDs de grupo contienen 'muclight'
+            return "muclight" in target or "group" in target.lower()
+        # Default: tratar como grupo
+        return True
 
     def _require_token(self, func: Callable) -> Callable:
         """Decorator para verificar que hay token válido antes de ejecutar método."""
@@ -302,3 +323,44 @@ class ToDusClient2(ToDusClient):
             with open(thumbnail_path, "rb") as f:
                 thumbnail_data = f.read()
         return self.upload_avatar(image_data, thumbnail_data)
+
+    # --- Historial (MAM) ---
+
+    def get_message_history(self, jid: str = "", since: str = "", before: str = "", limit: int = 50) -> str:
+        """Solicita historial de mensajes (Message Archive Management).
+
+        Args:
+            jid: JID del contacto/grupo. Si es vacío, solicita todo el historial.
+            since: Fecha/hora inicial (formato XMPP).
+            before: ID del mensaje anterior al cual obtener.
+            limit: Máximo de mensajes a retornar.
+
+        Returns:
+            El query_id de la petición. Los resultados llegan por listen_messages().
+        """
+        if not self._token:
+            raise AuthenticationError("No autenticado")
+        query_id = util.generate_token(12)
+        mam_xml = stanza.mam_query(query_id, since=since, before=before, limit=limit)
+        if jid:
+            # Inyectar el JID en la query
+            mam_xml = mam_xml.replace(
+                "<query xmlns='todus:mam'>",
+                f"<query xmlns='todus:mam' with='{jid}'>"
+            )
+        with self._xmpp_session(self._token) as sock:
+            sock.send(mam_xml.encode())
+        return query_id
+
+    # --- Rate Limiter ---
+
+    def set_rate_limit(self, max_ops: int, window_seconds: float = 60.0):
+        """Configura el rate limiter.
+
+        Args:
+            max_ops: Máximo de operaciones en la ventana.
+            window_seconds: Tamaño de la ventana en segundos.
+        """
+        from ..ratelimit import RateLimiter
+        self._rate_limiter = RateLimiter(max_ops=max_ops, window_seconds=window_seconds)
+        logger.info("Rate limiter configurado: %d ops / %.0fs", max_ops, window_seconds)

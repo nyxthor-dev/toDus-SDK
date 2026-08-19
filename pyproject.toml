@@ -45,10 +45,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/ElJoker63/toDus-API"
-Repository = "https://github.com/ElJoker63/toDus-API"
-Issues = "https://github.com/ElJoker63/toDus-API/issues"
-Changelog = "https://github.com/ElJoker63/toDus-API/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/nyxthor-dev/toDus-API"
+Repository = "https://github.com/nyxthor-dev/toDus-API"
+Issues = "https://github.com/nyxthor-dev/toDus-API/issues"
+Changelog = "https://github.com/nyxthor-dev/toDus-API/blob/main/CHANGELOG.md"
 
 [tool.setuptools.dynamic]
 version = {attr = "todus.__version__"}

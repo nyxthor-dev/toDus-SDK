@@ -20,8 +20,9 @@ from .util import normalize_phone, build_jid, generate_token, jwt_decode_payload
 from .parser import IncrementalParser, parse_tdack
 from .cache import MessageStore, Message, MessageStatus, MessageQueue
 from .events import EventBus
+from .ratelimit import RateLimiter
 
-__version__ = "1.5.4"  # EventBus + Message Queue + Scheduler
+__version__ = "1.6.0"  # Rate limiter + MAM + fixes criticos
 
 __all__ = [
     "ToDusClient",
@@ -59,4 +60,5 @@ __all__ = [
     "MessageStatus",
     "MessageQueue",
     "EventBus",
+    "RateLimiter",
 ]
