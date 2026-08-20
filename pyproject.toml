@@ -3,14 +3,14 @@ requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "toDus-API"
+name = "todus-sdk"
 dynamic = ["version"]
 description = "Cliente Python para ToDus (mensajería cubana) — chat, grupos, archivos, stickers y más"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
 authors = [
-    {name = "OrionWolf"},
+    {name = "nyxthor-dev", email = "vm1008079@gmail.com"},
 ]
 keywords = ["todus", "cuba", "xmpp", "messaging", "chat"]
 classifiers = [
