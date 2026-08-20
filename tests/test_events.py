@@ -1,93 +1,143 @@
-import re
-
-from todus.events import EventBus, build_filter
-
-
-def test_basic_message_filter_and_dispatch():
-    bus = EventBus()
-    seen = []
-
-    @bus.on("message", from_phone="5312345678")
-    def h1(evt):
-        seen.append(("h1", evt.get("from"), evt.get("body")))
-
-    msg = {"from": "5312345678", "body": "hola"}
-    bus.dispatch("message", msg)
-    assert seen == [("h1", "5312345678", "hola")]
+import pytest
+import time
+from todus.events import EventBus
+from todus.events.filters import Filter, build_filter
 
 
-def test_priority_and_stop_propagation():
-    bus = EventBus()
-    order = []
+class TestEventBus:
+    def test_subscribe_and_dispatch(self):
+        bus = EventBus()
+        received = []
+        bus.subscribe("message", lambda e: received.append(e))
+        bus.dispatch("message", {"body": "hola"})
+        assert len(received) == 1
+        assert received[0]["body"] == "hola"
 
-    @bus.on("message", priority=10)
-    def first(evt):
-        order.append("first")
+    def test_decorator(self):
+        bus = EventBus()
+        received = []
 
-    @bus.on("message", priority=5)
-    def second(evt):
-        order.append("second")
-        return True
+        @bus.on("message")
+        def handler(evt):
+            received.append(evt)
 
-    @bus.on("message", priority=1)
-    def third(evt):
-        order.append("third")
+        bus.dispatch("message", {"body": "test"})
+        assert len(received) == 1
 
-    bus.dispatch("message", {"from": "X"})
-    # second returns True -> stops, so 'third' should not run
-    assert order == ["first", "second"]
+    def test_priority_order(self):
+        bus = EventBus()
+        order = []
+        bus.subscribe("msg", lambda e: order.append("low"), priority=0)
+        bus.subscribe("msg", lambda e: order.append("high"), priority=10)
+        bus.dispatch("msg", {})
+        assert order == ["high", "low"]
+
+    def test_stop_on_true(self):
+        bus = EventBus()
+        order = []
+        bus.subscribe("msg", lambda e: (order.append("first"), True)[1], priority=10)
+        bus.subscribe("msg", lambda e: order.append("second"), priority=0)
+        bus.dispatch("msg", {})
+        assert order == ["first"]
+
+    def test_wildcard(self):
+        bus = EventBus()
+        received = []
+        bus.subscribe("*", lambda e: received.append(e.get("_event_type")))
+        bus.dispatch("message", {})
+        bus.dispatch("presence", {})
+        assert received == ["message", "presence"]
+
+    def test_unsubscribe(self):
+        bus = EventBus()
+        def h(e): pass
+        bus.subscribe("msg", h)
+        assert bus.unsubscribe("msg", h) is True
+        assert bus.unsubscribe("msg", h) is False
+
+    def test_clear_specific(self):
+        bus = EventBus()
+        bus.subscribe("a", lambda e: None)
+        bus.subscribe("b", lambda e: None)
+        bus.clear("a")
+        assert bus._handlers.get("a") is None
+        assert bus._handlers.get("b") is not None
+
+    def test_clear_all(self):
+        bus = EventBus()
+        bus.subscribe("a", lambda e: None)
+        bus.subscribe("b", lambda e: None)
+        bus.clear()
+        assert len(bus._handlers) == 0
+
+    def test_handler_exception_doesnt_break(self):
+        bus = EventBus()
+        received = []
+        bus.subscribe("msg", lambda e: 1 / 0, priority=10)
+        bus.subscribe("msg", lambda e: received.append("ok"), priority=0)
+        bus.dispatch("msg", {})
+        assert received == ["ok"]
+
+    def test_no_handlers_no_error(self):
+        bus = EventBus()
+        bus.dispatch("nonexistent", {})  # should not raise
 
 
-def test_wildcard_handlers_receive_event_type():
-    bus = EventBus()
-    seen = []
+class TestFilters:
+    def test_from_phone_match(self):
+        f = Filter(from_phone="5354123456")
+        assert f.matches({"from": "5354123456@im.todus.cu"}) is True
+        assert f.matches({"from": "5398765432@im.todus.cu"}) is False
 
-    @bus.on("*")
-    def wildcard(evt):
-        # should receive _event_type tag
-        seen.append(evt.get("_event_type"))
+    def test_from_phone_with_resource(self):
+        f = Filter(from_phone="5354123456")
+        assert f.matches({"from": "grp1@muclight.im.todus.cu/5354123456"}) is True
 
-    bus.dispatch("message", {"from": "A"})
-    bus.dispatch("presence", {"from": "B"})
-    assert seen == ["message", "presence"]
+    def test_contains_keyword(self):
+        f = Filter(contains_keyword="hola")
+        assert f.matches({"body": "hola mundo"}) is True
+        assert f.matches({"body": "chao"}) is False
 
+    def test_is_group(self):
+        f = Filter(is_group=True)
+        assert f.matches({"is_group": True}) is True
+        assert f.matches({"is_group": False}) is False
 
-def test_unsubscribe_and_clear():
-    bus = EventBus()
-    called = []
+    def test_group_id(self):
+        f = Filter(group_id="grp123")
+        assert f.matches({"group_id": "grp123"}) is True
+        assert f.matches({"group_id": "other"}) is False
 
-    def h(evt):
-        called.append(True)
+    def test_regex(self):
+        f = Filter(regex=r"^/cmd")
+        assert f.matches({"body": "/cmd start"}) is True
+        assert f.matches({"body": "normal"}) is False
 
-    bus.subscribe("message", h)
-    bus.dispatch("message", {"from": "1"})
-    assert called == [True]
+    def test_custom(self):
+        f = Filter(custom=lambda e: e.get("priority", 0) > 5)
+        assert f.matches({"priority": 10}) is True
+        assert f.matches({"priority": 3}) is False
 
-    assert bus.unsubscribe("message", h) is True
-    bus.dispatch("message", {"from": "1"})
-    assert called == [True]
+    def test_combined_filters(self):
+        f = Filter(from_phone="5354123456", contains_keyword="hola")
+        assert f.matches({"from": "5354123456@im.todus.cu", "body": "hola"}) is True
+        assert f.matches({"from": "5354123456@im.todus.cu", "body": "chao"}) is False
+        assert f.matches({"from": "5399999999@im.todus.cu", "body": "hola"}) is False
 
-    # test clear
-    def h2(evt):
-        called.append(2)
+    def test_build_filter(self):
+        fn = build_filter(contains_keyword="test")
+        assert fn({"body": "test pass"}) is True
+        assert fn({"body": "nope"}) is False
 
-    bus.subscribe("x", h2)
-    bus.clear()
-    bus.dispatch("x", {})
-    assert 2 not in called
+    def test_filter_with_decorator(self):
+        bus = EventBus()
+        received = []
 
+        @bus.on("message", from_phone="5354123456")
+        def on_my_msg(evt):
+            received.append(evt)
 
-def test_regex_and_custom_filter():
-    bus = EventBus()
-    seen = []
-
-    @bus.on("message", regex=r"hello")
-    def r(evt):
-        seen.append("r")
-
-    @bus.on("message", custom=lambda e: e.get("score", 0) > 5)
-    def c(evt):
-        seen.append("c")
-
-    bus.dispatch("message", {"body": "say hello world", "score": 10})
-    assert seen == ["r", "c"]
+        bus.dispatch("message", {"from": "5354123456@im.todus.cu", "body": "hola"})
+        bus.dispatch("message", {"from": "5398765432@im.todus.cu", "body": "hola"})
+        assert len(received) == 1
+        assert received[0]["from"] == "5354123456@im.todus.cu"

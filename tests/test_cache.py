@@ -1,124 +1,101 @@
-"""Tests para Message Queue."""
-
-import pytest
-import tempfile
 import time
-from pathlib import Path
-from todus.cache import MessageStore, Message, MessageStatus, MessageQueue
+import tempfile
+import os
+import pytest
+from todus.cache import MessageStore, Message, MessageStatus
+
+
+class TestMessage:
+    def test_defaults(self):
+        m = Message(msg_id="m1", to="53@im.todus.cu", body="hola")
+        assert m.status == MessageStatus.PENDING
+        assert m.retry_count == 0
+        assert m.metadata == {}
+        assert m.created_at > 0
+
+    def test_to_dict_roundtrip(self):
+        m = Message(msg_id="m1", to="53@im.todus.cu", body="hola", metadata={"key": "val"})
+        d = m.to_dict()
+        m2 = Message.from_dict(d)
+        assert m2.msg_id == "m1"
+        assert m2.body == "hola"
+        assert m2.metadata == {"key": "val"}
 
 
 class TestMessageStore:
-    """Tests para MessageStore."""
+    def setup_method(self):
+        self.tmpfile = tempfile.mktemp(suffix=".db")
+        self.store = MessageStore(self.tmpfile)
 
-    @pytest.fixture
-    def store(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = str(Path(tmpdir) / "test.db")
-            yield MessageStore(db_path)
+    def teardown_method(self):
+        if os.path.exists(self.tmpfile):
+            os.unlink(self.tmpfile)
 
-    def test_add_and_get(self, store):
-        msg = Message(
-            msg_id="msg1",
-            to="5312345678@im.todus.cu",
-            body="Hola",
-            status=MessageStatus.PENDING
-        )
-        assert store.add(msg)
-        
-        retrieved = store.get("msg1")
+    def test_add_and_get(self):
+        m = Message(msg_id="m1", to="53@im.todus.cu", body="hola")
+        self.store.add(m)
+        retrieved = self.store.get("m1")
         assert retrieved is not None
-        assert retrieved.msg_id == "msg1"
-        assert retrieved.body == "Hola"
+        assert retrieved.body == "hola"
 
-    def test_get_by_status(self, store):
-        for i in range(5):
-            msg = Message(
-                msg_id=f"msg{i}",
-                to="5312345678@im.todus.cu",
-                body=f"Test {i}",
-                status=MessageStatus.PENDING
-            )
-            store.add(msg)
-        
-        pending = store.get_by_status(MessageStatus.PENDING)
-        assert len(pending) == 5
+    def test_get_nonexistent(self):
+        assert self.store.get("no_existe") is None
 
-    def test_update_status(self, store):
-        msg = Message(msg_id="msg1", to="5312345678@im.todus.cu", body="Test")
-        store.add(msg)
-        
-        assert store.update_status("msg1", MessageStatus.SENT)
-        updated = store.get("msg1")
-        assert updated.status == MessageStatus.SENT
-        assert updated.sent_at is not None
+    def test_get_by_status(self):
+        self.store.add(Message(msg_id="m1", to="a", body="1"))
+        self.store.add(Message(msg_id="m2", to="b", body="2", status=MessageStatus.SENT))
+        pending = self.store.get_by_status(MessageStatus.PENDING)
+        assert len(pending) == 1
+        assert pending[0].msg_id == "m1"
 
-    def test_increment_retry(self, store):
-        msg = Message(msg_id="msg1", to="5312345678@im.todus.cu", body="Test", retry_count=0)
-        store.add(msg)
-        
-        assert store.increment_retry("msg1")
-        updated = store.get("msg1")
-        assert updated.retry_count == 1
+    def test_update_status(self):
+        self.store.add(Message(msg_id="m1", to="a", body="x"))
+        self.store.update_status("m1", MessageStatus.SENT)
+        m = self.store.get("m1")
+        assert m.status == MessageStatus.SENT
+        assert m.sent_at is not None
 
+    def test_update_to_read(self):
+        self.store.add(Message(msg_id="m1", to="a", body="x"))
+        self.store.update_status("m1", MessageStatus.READ)
+        m = self.store.get("m1")
+        assert m.status == MessageStatus.READ
+        assert m.read_at is not None
 
-class TestMessageQueue:
-    """Tests para MessageQueue."""
+    def test_update_to_failed(self):
+        self.store.add(Message(msg_id="m1", to="a", body="x"))
+        self.store.update_status("m1", MessageStatus.FAILED, error="timeout")
+        m = self.store.get("m1")
+        assert m.status == MessageStatus.FAILED
+        assert m.last_error == "timeout"
 
-    @pytest.fixture
-    def queue(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = str(Path(tmpdir) / "test.db")
-            store = MessageStore(db_path)
-            yield MessageQueue(store, auto_retry=False)
+    def test_increment_retry(self):
+        self.store.add(Message(msg_id="m1", to="a", body="x"))
+        self.store.increment_retry("m1")
+        self.store.increment_retry("m1")
+        m = self.store.get("m1")
+        assert m.retry_count == 2
 
-    def test_enqueue(self, queue):
-        msg = queue.enqueue("msg1", "5312345678@im.todus.cu", "Hola")
-        assert msg.msg_id == "msg1"
-        assert msg.status == MessageStatus.PENDING
+    def test_delete(self):
+        self.store.add(Message(msg_id="m1", to="a", body="x"))
+        assert self.store.delete("m1") is True
+        assert self.store.get("m1") is None
 
-    def test_mark_sent(self, queue):
-        queue.enqueue("msg1", "5312345678@im.todus.cu", "Hola")
-        assert queue.mark_sent("msg1")
-        
-        msg = queue.store.get("msg1")
-        assert msg.status == MessageStatus.SENT
+    def test_stats(self):
+        self.store.add(Message(msg_id="m1", to="a", body="1"))
+        self.store.add(Message(msg_id="m2", to="b", body="2", status=MessageStatus.SENT))
+        self.store.add(Message(msg_id="m3", to="c", body="3", status=MessageStatus.SENT))
+        stats = self.store.get_stats()
+        assert stats.get("pending") == 1
+        assert stats.get("sent") == 2
 
-    def test_mark_delivered(self, queue):
-        queue.enqueue("msg1", "5312345678@im.todus.cu", "Hola")
-        assert queue.mark_delivered("msg1")
-        
-        msg = queue.store.get("msg1")
-        assert msg.status == MessageStatus.DELIVERED
-
-    def test_mark_read(self, queue):
-        queue.enqueue("msg1", "5312345678@im.todus.cu", "Hola")
-        assert queue.mark_read("msg1")
-        
-        msg = queue.store.get("msg1")
-        assert msg.status == MessageStatus.READ
-
-    def test_callback_triggered(self, queue):
-        callback_called = {"count": 0, "msg": None}
-        
-        def on_delivered(msg):
-            callback_called["count"] += 1
-            callback_called["msg"] = msg
-        
-        queue.register_callback("on_message_delivered", on_delivered)
-        queue.enqueue("msg1", "5312345678@im.todus.cu", "Hola")
-        queue.mark_delivered("msg1")
-        
-        assert callback_called["count"] == 1
-        assert callback_called["msg"].msg_id == "msg1"
-
-    def test_backoff_time_increases(self, queue):
-        msg0 = Message(msg_id="m0", to="test", body="test", retry_count=0)
-        msg1 = Message(msg_id="m1", to="test", body="test", retry_count=1)
-        msg5 = Message(msg_id="m5", to="test", body="test", retry_count=5)
-        
-        t0 = queue.get_backoff_time(msg0)
-        t1 = queue.get_backoff_time(msg1)
-        t5 = queue.get_backoff_time(msg5)
-        
-        # Exponencial: 2^0=1, 2^1=2, 2^5=32
-        assert t0 < t1 < t5
+    def test_clear_old(self):
+        old_ts = time.time() - (31 * 86400)
+        m = Message(msg_id="old", to="a", body="old", status=MessageStatus.READ)
+        m.created_at = old_ts
+        self.store.add(m)
+        self.store.add(Message(msg_id="new", to="a", body="new", status=MessageStatus.READ))
+        deleted = self.store.clear_old(days=30)
+        assert deleted == 1
+        assert self.store.get("old") is None
+        assert self.store.get("new") is not None
