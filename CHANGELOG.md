@@ -5,6 +5,19 @@ Todos los cambios notables en este proyecto se documentan en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/),
 y este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.6.0] - 2026-08-20
+
+### Changed
+- Bloques de código en la documentación ahora usan fondo claro en modo claro, corrigiendo el problema donde se veían oscuros.
+- Enlaces del README y documentación actualizados al repositorio nyxthor-dev/toDus-API.
+- Créditos del README actualizados: nyxthor-dev como mantenedor actual.
+
+### Added
+- **Rate Limiter**: Nuevo módulo `todus/ratelimit.py` con `RateLimiter` para control de tasa de peticiones.
+- `RateLimiter` exportado en `todus/__init__`.
+
+---
+
 ## [1.5.4] - 2026-06-26
 
 ### Added
