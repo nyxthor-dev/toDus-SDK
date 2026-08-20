@@ -1,79 +1,50 @@
-# 🌟 toDus SDK para Python
+# ToDus SDK para Python
 
-Bienvenido a la documentación oficial del **toDus SDK**, la biblioteca Python más completa para interactuar con **toDus**, la plataforma de mensajería instantánea cubana.
+Biblioteca Python para interactuar con **ToDus**, la plataforma de mensajería instantánea cubana. Implementa los protocolos XMPP y HTTP con una API simple y directa.
 
-Este SDK implementa los protocolos **XMPP y HTTP** de toDus, ofreciendo una API moderna, fácil de usar y completamente asíncrona.
+## Características
 
----
+- **Mensajería completa** — texto, imágenes, videos, stickers, ubicaciones, contactos y eventos
+- **Grupos MUC Light** — administración de miembros, roles, invitaciones
+- **Cola persistente** — SQLite con reintentos automáticos y backoff exponencial
+- **Canales** — públicos y privados con suscripción
+- **Estados/Historias** — publicación y seguimiento
+- **Event Bus** — sistema de eventos con filtros y prioridades
+- **Rate limiter** — integrado, configurable por operación
+- **Proxies** — HTTP y SOCKS4/5
 
-## ⚡ Características Destacadas
+## Instalación
 
-- 📱 Mensajería completa (texto, imágenes, videos, stickers, ubicación, contactos, eventos)
-- 👥 Soporte para grupos MUC Light con administración de miembros
-- 💾 Cola de mensajes persistente con SQLite y reintentos automáticos
-- 🌐 Canales públicos/privados con suscripción
-- 📸 Estados/Historias con seguimiento de usuarios
-- 🔐 Autenticación con contraseña o código SMS
-- 🔗 Soporte para proxies (HTTP, SOCKS4/5)
-- ♻️ Reconexión automática y Keep-alive
-- 📊 Callbacks para eventos y estadísticas en tiempo real
-
----
-
-## 🚀 Inicio Rápido
-
-### Instalación
 ```bash
 pip install todus-sdk
 ```
 
-### Tu primer bot
-```python
-from todus import ToDusClientWithQueue
+## Ejemplo rápido
 
-# Crear cliente con cola persistente
-client = ToDusClientWithQueue("5312345678", "tu_contraseña")
+```python
+from todus import ToDusClient2
+
+client = ToDusClient2(phone_number="5312345678", password="tu_contraseña")
 client.login()
 
-# Enviar mensaje
-msg_id = client.send_message_queued("5387654321", "¡Hola mundo!")
+client.send_message("5387654321", "Hola desde ToDus SDK")
 
-# Escuchar mensajes
-def on_message(msg):
-    sender = msg.get('from').split('@')[0]
-    body = msg.get('body')
-    print(f"📨 {sender}: {body}")
+def on_msg(msg):
+    print(f"{msg.get('from')}: {msg.get('body')}")
 
-client.listen_messages(client.token, on_message)
+client.listen_messages(on_msg)
 ```
 
----
+## Documentación
 
-## 📚 Documentación
-
-| Sección | Descripción |
-|---------|------------|
-| [⚡ Inicio Rápido](quickstart.md) | Tutorial paso a paso |
-| [🔐 Autenticación](authentication.md) | SMS vs Contraseña |
-| [📝 Mensajería](client/overview.md) | API de mensajes |
-| [👥 Grupos](groups.md) | Manejo de MUC Light |
-| [💾 Cola Persistente](cache/overview.md) | Entrega garantizada |
-| [🔧 Solución de Problemas](troubleshooting.md) | Errores comunes |
-| [💡 Ejemplos Avanzados](examples_advanced.md) | Patrones reales |
-
----
-
-## 🤝 Comunidad
-
-- 🐛 [Reportar bugs](https://github.com/vm1008079-web/toDus-API/issues)
-- 💬 [Discusiones](https://github.com/vm1008079-web/toDus-API/discussions)
-- 🤝 [Contribuir](contributing.md)
-- 📝 [CHANGELOG](changelog.md)
-
----
-
-## ⚖️ Licencia
-
-Este proyecto está bajo la licencia **MIT**. Puedes usarlo libremente.
-
-**¡Feliz codificación! 🎉**
+| Guía | Descripción |
+|------|-------------|
+| [Instalación](installation.md) | Requisitos y métodos de instalación |
+| [Inicio Rápido](quickstart.md) | Primeros pasos con el SDK |
+| [Cliente](client/overview.md) | Arquitectura y clases principales |
+| [Grupos](groups.md) | Manejo de grupos MUC Light |
+| [Autenticación](authentication.md) | Contraseña y código SMS |
+| [Event Bus](events/overview.md) | Sistema de eventos y filtros |
+| [Cola Persistente](cache/overview.md) | Entrega garantizada con SQLite |
+| [Ejemplos](examples_advanced.md) | Patrones de uso avanzados |
+| [Solución de Problemas](troubleshooting.md) | Errores comunes y soluciones |
