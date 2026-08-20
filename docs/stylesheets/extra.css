@@ -137,13 +137,18 @@
 }
 
 .md-typeset pre > code {
-  background-color: #1e293b;
-  color: #e2e8f0;
-  border: none;
+  background-color: #f8fafc;
+  color: #1e293b;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   padding: 16px;
   font-size: 0.85em;
   line-height: 1.6;
+}
+
+.md-typeset pre {
+  background-color: #f8fafc;
+  border-radius: 8px;
 }
 
 /* Tables */
