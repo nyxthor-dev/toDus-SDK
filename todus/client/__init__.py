@@ -13,6 +13,8 @@ from .auth import ToDusAuthMixin
 from .message import ToDusMessageMixin
 from .file import ToDusFileMixin
 from .profile import ToDusProfileMixin
+from .. import stanzas
+from .. import util
 from .channels import ToDusChannelMixin
 from .status import ToDusStatusMixin
 from .privacy import ToDusPrivacyMixin
@@ -341,7 +343,7 @@ class ToDusClient2(ToDusClient):
         if not self._token:
             raise AuthenticationError("No autenticado")
         query_id = util.generate_token(12)
-        mam_xml = stanza.mam_query(query_id, since=since, before=before, limit=limit)
+        mam_xml = stanzas.utils.mam_query(query_id, since=since, before=before, limit=limit)
         if jid:
             # Inyectar el JID en la query
             mam_xml = mam_xml.replace(
