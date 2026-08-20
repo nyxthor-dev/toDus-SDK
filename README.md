@@ -3,15 +3,15 @@
 <p align="center">
   <a href="https://pypi.org/project/todus-sdk/"><img src="https://img.shields.io/pypi/v/todus-sdk" alt="PyPI"></a>
   <a href="https://pypi.org/project/todus-sdk/"><img src="https://img.shields.io/pypi/pyversions/todus-sdk" alt="Python"></a>
-  <a href="https://vm1008079-web.github.io/toDus-API"><img src="https://img.shields.io/badge/docs-mkdocs-blue" alt="Docs"></a>
-  <a href="https://github.com/vm1008079-web/toDus-API/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-brightgreen" alt="License"></a>
-  <a href="https://github.com/vm1008079-web/toDus-API"><img src="https://img.shields.io/github/stars/vm1008079-web/toDus-API?style=social" alt="Stars"></a>
+  <a href="https://nyxthor-dev.github.io/toDus-API"><img src="https://img.shields.io/badge/docs-mkdocs-blue" alt="Docs"></a>
+  <a href="https://github.com/nyxthor-dev/toDus-API/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-brightgreen" alt="License"></a>
+  <a href="https://github.com/nyxthor-dev/toDus-API"><img src="https://img.shields.io/github/stars/nyxthor-dev/toDus-API?style=social" alt="Stars"></a>
 </p>
 
 <p align="center"><strong>Cliente Python 🐍 para ToDus</strong> — la plataforma de mensajería instantánea cubana.</p>
 
 <p align="center">
-  <a href="https://vm1008079-web.github.io/toDus-API"><strong>📖 LEER LA DOCUMENTACIÓN COMPLETA 📖</strong></a>
+  <a href="https://nyxthor-dev.github.io/toDus-API"><strong>📖 LEER LA DOCUMENTACIÓN COMPLETA 📖</strong></a>
 </p>
 
 ---
@@ -63,13 +63,13 @@ client.listen_messages(client.token, on_message)
 
 | 📖 Tema | 📝 Descripción |
 |--------|--------------|
-| [🚀 Inicio Rápido](https://vm1008079-web.github.io/toDus-API/quickstart/) | Tutorial paso a paso |
-| [🔐 Autenticación](https://vm1008079-web.github.io/toDus-API/authentication/) | SMS vs Contraseña |
-| [💬 Mensajería](https://vm1008079-web.github.io/toDus-API/client/overview/) | API de mensajes |
-| [👥 Grupos MUC](https://vm1008079-web.github.io/toDus-API/groups/) | Administración de grupos |
-| [💾 Cola Persistente](https://vm1008079-web.github.io/toDus-API/cache/overview/) | Entrega garantizada |
-| [🔧 Solución de Problemas](https://vm1008079-web.github.io/toDus-API/troubleshooting/) | Errores comunes |
-| [💡 Ejemplos Avanzados](https://vm1008079-web.github.io/toDus-API/examples_advanced/) | Patrones reales |
+| [🚀 Inicio Rápido](https://nyxthor-dev.github.io/toDus-API/quickstart/) | Tutorial paso a paso |
+| [🔐 Autenticación](https://nyxthor-dev.github.io/toDus-API/authentication/) | SMS vs Contraseña |
+| [💬 Mensajería](https://nyxthor-dev.github.io/toDus-API/client/overview/) | API de mensajes |
+| [👥 Grupos MUC](https://nyxthor-dev.github.io/toDus-API/groups/) | Administración de grupos |
+| [💾 Cola Persistente](https://nyxthor-dev.github.io/toDus-API/cache/overview/) | Entrega garantizada |
+| [🔧 Solución de Problemas](https://nyxthor-dev.github.io/toDus-API/troubleshooting/) | Errores comunes |
+| [💡 Ejemplos Avanzados](https://nyxthor-dev.github.io/toDus-API/examples_advanced/) | Patrones reales |
 
 ---
 
@@ -134,7 +134,7 @@ groups.send_message("id_grupo", "¡Hola grupo!")
 members = groups.get_members("id_grupo")
 ```
 
-Ver más ejemplos en [Ejemplos Avanzados](https://vm1008079-web.github.io/toDus-API/examples_advanced/)
+Ver más ejemplos en [Ejemplos Avanzados](https://nyxthor-dev.github.io/toDus-API/examples_advanced/)
 
 ---
 
@@ -166,7 +166,8 @@ Este proyecto está bajo la licencia **MIT**. Ver [LICENSE](LICENSE) para más d
 
 Agradecemos a todos los que han contribuido:
 
-- **OrionWolf** - Creador y mantenedor principal
+- **nyxthor-dev** - Mantenedor actual
+- **OrionWolf** - Creador original
 - **Comunidad toDus** - Bug reports y sugerencias
 
 ¿Quieres aparecer aquí? ¡Contribuye!
@@ -175,9 +176,9 @@ Agradecemos a todos los que han contribuido:
 
 ## 📞 Soporte
 
-- 📖 [Documentación](https://vm1008079-web.github.io/toDus-API/)
-- 🐛 [Reportar bug](https://github.com/vm1008079-web/toDus-API/issues)
-- 💬 [Discusiones](https://github.com/vm1008079-web/toDus-API/discussions)
+- 📖 [Documentación](https://nyxthor-dev.github.io/toDus-API/)
+- 🐛 [Reportar bug](https://github.com/nyxthor-dev/toDus-API/issues)
+- 💬 [Discusiones](https://github.com/nyxthor-dev/toDus-API/discussions)
 - 📝 [CHANGELOG](CHANGELOG.md)
 
 ---
@@ -186,12 +187,12 @@ Agradecemos a todos los que han contribuido:
 
 - 🌐 [Página de toDus](https://www.todus.cu)
 - 📦 [PyPI Package](https://pypi.org/project/todus-sdk/)
-- 📖 [Documentación](https://vm1008079-web.github.io/toDus-API/)
-- 💻 [Repositorio GitHub](https://github.com/vm1008079-web/toDus-API)
+- 📖 [Documentación](https://nyxthor-dev.github.io/toDus-API/)
+- 💻 [Repositorio GitHub](https://github.com/nyxthor-dev/toDus-API)
 
 ---
 
 <p align="center">
-  Desarrollado con ❤️ por <strong>OrionWolf</strong><br>
-  <em>Mantenido por la comunidad toDus</em>
+  Desarrollado con ❤️ por <strong>nyxthor-dev</strong><br>
+  <em>Basado en el trabajo original de OrionWolf</em>
 </p>
