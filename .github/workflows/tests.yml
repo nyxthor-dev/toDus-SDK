@@ -1,0 +1,97 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]" pytest-json-report
+
+      - name: Run tests
+        run: pytest tests/ -v --json-report --json-report-file=report.json --tb=short 2>&1 | tee test_output.txt
+
+      - name: Generate summary
+        if: always()
+        run: |
+          python -c "
+          import json, datetime, os
+
+          with open('report.json') as f:
+              data = json.load(f)
+
+          summary = data.get('summary', '')
+          tests = data.get('tests', [])
+          passed = [t for t in tests if t.get('outcome') == 'passed']
+          failed = [t for t in tests if t.get('outcome') == 'failed']
+          errors = [t for t in tests if t.get('outcome') == 'error']
+
+          now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M UTC')
+
+          lines = []
+          lines.append(f'# Test Report')
+          lines.append(f'')
+          lines.append(f'- **Fecha**: {now}')
+          lines.append(f'- **Total**: {len(tests)}')
+          lines.append(f'- **Passed**: {len(passed)}')
+          lines.append(f'- **Failed**: {len(failed)}')
+          lines.append(f'- **Errors**: {len(errors)}')
+          lines.append(f'- **Duration**: {data.get("duration", 0):.2f}s')
+          lines.append(f'')
+
+          if failed:
+              lines.append('## Failed')
+              for t in failed:
+                  node = t.get('nodeid', 'unknown')
+                  msg = t.get('call', {}).get('crash', {}).get('message', '')
+                  lines.append(f'- `{node}`')
+                  if msg:
+                      lines.append(f'  ```')
+                      lines.append(f'  {msg.strip()[:300]}')
+                      lines.append(f'  ```')
+              lines.append('')
+
+          if errors:
+              lines.append('## Errors')
+              for t in errors:
+                  node = t.get('nodeid', 'unknown')
+                  lines.append(f'- `{node}`')
+              lines.append('')
+
+          lines.append('## Passed')
+          lines.append('')
+          for t in passed:
+              node = t.get('nodeid', 'unknown')
+              duration = t.get('duration', 0)
+              lines.append(f'- `{node}` ({duration:.3f}s)')
+
+          with open('.github/test-report.md', 'w') as f:
+              f.write('\\n'.join(lines))
+          "
+
+      - name: Commit test report
+        if: always()
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add .github/test-report.md
+          git commit -m 'test report' || true
+          git push || true
+
+      - name: Upload test report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: .github/test-report.md
