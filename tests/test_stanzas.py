@@ -1,4 +1,4 @@
-import pytest
+import re
 from todus.stanzas.private import (
     message, edit_message, file_message, image_message, image_message_simple,
     button_message, contact_message, sticker_message, video_message,
@@ -33,7 +33,8 @@ class TestPrivateMessage:
         assert "nuevo texto" in xml
 
     def test_file_message(self):
-        xml = file_message("53@im.todus.cu", "https://url/f", 0, "pdf", msg_id="f1", file_name="doc.pdf", file_size=1024)
+        xml = file_message("53@im.todus.cu", "https://url/f", 0, "pdf",
+                           msg_id="f1", file_name="doc.pdf", file_size=1024)
         assert "<file" in xml
         assert "n='doc.pdf'" in xml
         assert "s='1024'" in xml
@@ -92,9 +93,11 @@ class TestPrivateMessage:
         assert "ad='false'" in xml
 
     def test_reply_to_in_message(self):
+        # La APK no tiene extensión reply:n; las respuestas usan resend:n
         xml = message("53@im.todus.cu", "resp", reply_to_id="original")
-        assert "<reply" in xml
+        assert "<resend xmlns='resend:n'" in xml
         assert "mi='original'" in xml
+        assert "<reply" not in xml
 
     def test_generate_msg_id_is_hex(self):
         mid = _generate_msg_id()
@@ -116,26 +119,41 @@ class TestUtilityStanzas:
         assert "urn:xmpp:ping" in xml
 
     def test_chat_state_composing(self):
+        # APK: csc = composing (no csp)
         xml = chat_state("53@im.todus.cu", "composing")
-        assert "<csp" in xml
+        assert "<csc" in xml
+        assert "<csp" not in xml
 
     def test_chat_state_paused(self):
+        # APK: csp = paused (no csc)
         xml = chat_state("53@im.todus.cu", "paused")
-        assert "<csc" in xml
+        assert "<csp" in xml
+        assert "<csc" not in xml
+
+    def test_chat_state_extended(self):
+        assert "<csa" in chat_state("53@im.todus.cu", "active")
+        assert "<csi" in chat_state("53@im.todus.cu", "inactive")
+        assert "<csg" in chat_state("53@im.todus.cu", "gone")
 
     def test_receipt(self):
+        # APK: rd = Received (entrega)
         xml = receipt("53@im.todus.cu", "msg1")
-        assert "<dd" in xml
+        assert "<rd" in xml
         assert "i='msg1'" in xml
+        assert "<dd" not in xml
 
     def test_read_receipt(self):
+        # APK: dd = Displayed (lectura)
         xml = read_receipt("53@im.todus.cu", "msg1")
-        assert "<rd" in xml
+        assert "<dd" in xml
+        assert "<rd" not in xml
 
     def test_ack(self):
+        # APK: elemento ak (AcknowledgedExtension); tdack no existe
         xml = ack("msg1")
-        assert "<tdack" in xml
-        assert "mi='msg1'" in xml
+        assert "<ak" in xml
+        assert "i='msg1'" in xml
+        assert "tdack" not in xml
 
     def test_keepalive(self):
         assert keepalive() == " "
@@ -158,11 +176,25 @@ class TestUtilityStanzas:
         xml = bind("b1")
         assert "<b1" in xml
 
+    def test_bind_with_resource(self):
+        # APK: resource = md5(username)_Android
+        xml = bind("b1", username="5354123456")
+        assert "<re>" in xml
+        assert "_Android</re>" in xml
+        assert len(re.search(r"<re>([0-9a-f]+)_Android</re>", xml).group(1)) == 32
+
     def test_mam_query(self):
+        # APK: namespace estándar XEP-0313 (urn:xmpp:mam:1)
         xml = mam_query("q1", since="2024-01-01T00:00:00Z", limit=20)
-        assert "todus:mam" in xml
+        assert "urn:xmpp:mam:1" in xml
+        assert "todus:mam" not in xml
         assert "2024-01-01T00:00:00Z" in xml
         assert "<max>20</max>" in xml
+
+    def test_mam_query_with_jid(self):
+        xml = mam_query("q2", with_jid="5354123456@im.todus.cu")
+        assert "var='with'" in xml
+        assert "5354123456@im.todus.cu" in xml
 
     def test_upload_query(self):
         xml = upload_query("u1", 5000, 4, file_name="foto.jpg")

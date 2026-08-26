@@ -1,4 +1,3 @@
-import pytest
 from todus.parser import (
     parse_todus_message, parse_presence, parse_iq, parse_tdack,
     IncrementalParser, extract_all_stanzas, _attr,
@@ -27,15 +26,17 @@ STANZA_MSG_EDITED = """<m f='5354123456@im.todus.cu' o='5398765432' i='orig01' t
 
 STANZA_MSG_DELETED = """<m f='5354123456@im.todus.cu' o='5398765432' i='del01' t='c' xmlns='jc'><k xmlns='x8'/><deleted xmlns='deleted:n' i='did1' mi='del01'/><b/></m>"""
 
-STANZA_MSG_COMPOSING = """<m f='5354123456@im.todus.cu' o='5398765432' i='csp01' t='c' xmlns='jc'><csp xmlns='uc1'/></m>"""
+STANZA_MSG_COMPOSING = """<m f='5354123456@im.todus.cu' o='5398765432' i='csc01' t='c' xmlns='jc'><csc xmlns='uc1'/></m>"""
 
-STANZA_MSG_DELIVERED = """<m f='5354123456@im.todus.cu' o='5398765432' i='dd01' t='c' xmlns='jc'><dd xmlns='x8' i='msg123'/></m>"""
+STANZA_MSG_PAUSED = """<m f='5354123456@im.todus.cu' o='5398765432' i='csp02' t='c' xmlns='jc'><csp xmlns='uc1'/></m>"""
 
-STANZA_MSG_READ = """<m f='5354123456@im.todus.cu' o='5398765432' i='rd01' t='c' xmlns='jc'><rd xmlns='x8' i='msg456'/></m>"""
+STANZA_MSG_DELIVERED = """<m f='5354123456@im.todus.cu' o='5398765432' i='rd01' t='c' xmlns='jc'><rd xmlns='x8' i='msg123'/></m>"""
+
+STANZA_MSG_READ = """<m f='5354123456@im.todus.cu' o='5398765432' i='dd01' t='c' xmlns='jc'><dd xmlns='x8' i='msg456'/></m>"""
 
 STANZA_MSG_BUTTONS = """<m f='5354123456@im.todus.cu' o='5398765432' i='btn01' t='c' xmlns='jc'><k xmlns='x8'/><b>Elige:</b><button xmlns='button:n' btn_t='Opcion 1' btn_cmd='cmd_type_send' btn_msg_c='1' btn_size='0.5'/><button xmlns='button:n' btn_t='Opcion 2' btn_cmd='cmd_type_send' btn_msg_c='2' btn_size='0.5'/></m>"""
 
-STANZA_MSG_REPLY = """<m f='5354123456@im.todus.cu' o='5398765432' i='rep01' t='c' xmlns='jc'><k xmlns='x8'/><reply xmlns='reply:n' mi='original_id'/><b>Respuesta</b></m>"""
+STANZA_MSG_REPLY = """<m f='5354123456@im.todus.cu' o='5398765432' i='rep01' t='c' xmlns='jc'><k xmlns='x8'/><resend xmlns='resend:n' i='rep01' mi='original_id' uowner='5354123456@im.todus.cu'/><b>Respuesta</b></m>"""
 
 STANZA_PRESENCE = """<p f='5354123456@im.todus.cu' o='' i='p1' xmlns='jc'><show>away</show><status>Ausente</status><priority>1</priority></p>"""
 
@@ -118,8 +119,14 @@ class TestParseMessage:
         assert r["deleted"] == "del01"
 
     def test_chat_state_composing(self):
+        # APK: csc = composing
         r = parse_todus_message(STANZA_MSG_COMPOSING)
         assert r["chat_state"] == "composing"
+
+    def test_chat_state_paused(self):
+        # APK: csp = paused
+        r = parse_todus_message(STANZA_MSG_PAUSED)
+        assert r["chat_state"] == "paused"
 
     def test_delivery_receipt(self):
         r = parse_todus_message(STANZA_MSG_DELIVERED)
@@ -137,9 +144,11 @@ class TestParseMessage:
         assert r["buttons"][0]["text"] == "Opcion 1"
         assert r["buttons"][1]["data"] == "2"
 
-    def test_reply_to(self):
+    def test_reply_and_forward(self):
         r = parse_todus_message(STANZA_MSG_REPLY)
         assert r["reply_to"] == "original_id"
+        assert r["forward_id"] == "original_id"
+        assert r["forward_owner"] == "5354123456@im.todus.cu"
 
     def test_has_key(self):
         r = parse_todus_message(STANZA_MSG)

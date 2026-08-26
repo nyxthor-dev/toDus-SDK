@@ -1,5 +1,4 @@
 import time
-import pytest
 from todus.ratelimit import RateLimiter
 
 

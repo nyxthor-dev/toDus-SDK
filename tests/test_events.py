@@ -1,5 +1,3 @@
-import pytest
-import time
 from todus.events import EventBus
 from todus.events.filters import Filter, build_filter
 
