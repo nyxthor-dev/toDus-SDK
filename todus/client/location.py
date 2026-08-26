@@ -2,6 +2,7 @@
 
 from ..stanzas import location
 
+
 class ToDusLocationMixin:
     """Mixin que añade capacidades de Ubicación a los clientes ToDus."""
 

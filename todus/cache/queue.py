@@ -100,7 +100,7 @@ class MessageQueue:
 
     def start_auto_retry_worker(self, send_fn: Callable = None):
         """Inicia thread de reintentos automáticos.
-        
+
         Args:
             send_fn: Callable que recibe un Message y retorna bool (True=éxito).
                      Si es None, el worker no podrá reenviar mensajes.
@@ -125,35 +125,35 @@ class MessageQueue:
     def _retry_worker_loop(self):
         """Loop que procesa reintentos realmente reenviando mensajes."""
         last_attempt = {}
-        
+
         while self._running:
             try:
                 # Obtener mensajes que están en estado PENDING y tienen reintentos > 0
                 # (los que nunca se enviaron correctamente)
                 pending = self.dequeue(MessageStatus.PENDING, limit=100)
-                
+
                 for msg in pending:
                     if not self._running:
                         break
                     now = time.time()
                     last = last_attempt.get(msg.msg_id, 0)
                     backoff = self.get_backoff_time(msg)
-                    
+
                     # Si ya fue intentado y no ha pasado suficiente tiempo, saltar
                     if last > 0 and (now - last) < backoff:
                         continue
-                    
+
                     # Solo reintentar si tiene reintentos pendientes (>0) o si
                     # el mensaje es viejo (más de 60 segundos sin enviar)
                     if msg.retry_count > 0 or (now - msg.created_at) > 60:
                         if self._send_fn is None:
                             logger.debug("No hay send_fn configurado, saltando retry de %s", msg.msg_id)
                             continue
-                        
+
                         logger.info("Reintentando mensaje %s (intento %d/%d)",
                                     msg.msg_id, msg.retry_count + 1, msg.max_retries)
                         last_attempt[msg.msg_id] = now
-                        
+
                         success = self._send_fn(msg)
                         if success:
                             self.store.update_status(msg_id=msg.msg_id, new_status=MessageStatus.PENDING)
@@ -161,7 +161,7 @@ class MessageQueue:
                             # (el send_fn ya intentó enviar; si el caller marca como sent, se actualiza)
                         else:
                             self.mark_failed(msg.msg_id, error="retry_worker: reenvío falló")
-                
+
                 time.sleep(5)
             except Exception as e:
                 logger.error("Error en retry worker: %s", e)

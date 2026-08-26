@@ -56,7 +56,7 @@ class ToDusAuthMixin:
         try:
             if b"`" in content:
                 idx = content.index(b"`") + 1
-                return content[idx : idx + 96].decode("utf-8")
+                return content[idx: idx + 96].decode("utf-8")
             return content[5:166].decode("utf-8")
         except UnicodeDecodeError:
             raw = content.decode("latin-1", errors="ignore")
@@ -101,5 +101,5 @@ class ToDusAuthMixin:
             if c in string.ascii_letters + string.digits + "._-"
         )
         if not token_clean or "." not in token_clean:
-            raise AuthenticationError(f"Token inválido recibido del servidor")
+            raise AuthenticationError("Token inválido recibido del servidor")
         return token_clean

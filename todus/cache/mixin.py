@@ -1,12 +1,9 @@
 """Mixin para integrar Message Queue en cliente ToDus."""
 
 import logging
-from typing import Callable, Optional, TYPE_CHECKING
-from .store import MessageStore, MessageStatus
+from typing import Callable, Optional
+from .store import MessageStore
 from .queue import MessageQueue
-
-if TYPE_CHECKING:
-    from ..client import ToDusClient2
 
 logger = logging.getLogger("todus.cache.mixin")
 
@@ -23,7 +20,7 @@ class MessageQueueMixin:
         self._queue_enabled = enable_queue
         self._message_store: Optional[MessageStore] = None
         self._message_queue: Optional[MessageQueue] = None
-        
+
         if self._queue_enabled:
             self._message_store = MessageStore(queue_db_path)
             self._message_queue = MessageQueue(self._message_store)
@@ -48,7 +45,7 @@ class MessageQueueMixin:
 
     def _retry_send(self, msg) -> bool:
         """Reenvía un mensaje fallido. Usado por el auto-retry worker.
-        
+
         Returns True si el reenvío fue exitoso.
         """
         try:

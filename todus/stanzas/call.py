@@ -4,16 +4,18 @@ from .utils import build_iq
 
 TURN_JID = "xxxx@im.todus.cu"  # Generalmente el servidor TURN de ToDus
 
+
 def get_turn_credentials(user_jid: str) -> str:
     """Solicita credenciales TURN para iniciar conexión P2P."""
     # ToDus usa tturn@im.todus.cu para turn, a veces. Verificamos con el TURN_JID.
     query = f"<query xmlns='todus:turn:cred' userId='{user_jid}'/>"
     return build_iq("get", "tturn@im.todus.cu", query)
 
+
 def send_call_status(to_user: str, from_user: str, status: str, content: str = "") -> str:
     """
     Envía una actualización de estado de llamada (señalización).
-    
+
     Args:
         to_user: JID destino.
         from_user: JID origen.

@@ -1,13 +1,16 @@
-import requests
-from ..types import FileType
-
-
 class ToDusProfileMixin:
     """Mixin que contiene los métodos de manejo de perfil y avatar de ToDus."""
 
     # --- Perfil ---
 
-    def update_profile(self, token: str, alias: str = "", bio: str = "", picture_url: str = "", thumbnail_url: str = "") -> bool:
+    def update_profile(
+        self,
+        token: str,
+        alias: str = "",
+        bio: str = "",
+        picture_url: str = "",
+        thumbnail_url: str = "",
+    ) -> bool:
         def encode_varint(value: int) -> bytes:
             result = bytearray()
             while True:
@@ -41,7 +44,7 @@ class ToDusProfileMixin:
             "User-Agent": "ToDus 2.1.2 Auth",
             "Content-Type": "application/x-protobuf",
         }
-        
+
         payload = bytearray()
         if alias:
             payload.extend(build_map_entry("alias", alias))
@@ -51,7 +54,7 @@ class ToDusProfileMixin:
             payload.extend(build_map_entry("picture_url", picture_url))
         if thumbnail_url:
             payload.extend(build_map_entry("picture_thumbnail_url", thumbnail_url))
-            
+
         if not payload:
             return False
 
@@ -84,13 +87,13 @@ class ToDusProfileMixin:
         from ..stanzas.profile import set_todus_id_iq
         import hashlib
         from .. import util
-        
+
         mid = msg_id or hashlib.md5(util.generate_token(16).encode()).hexdigest()
         iq_xml = set_todus_id_iq(new_id, msg_id=mid)
 
         with self._xmpp_session(self.token) as sock:
-            sock.send(iq_xml.encode())
-            
+            sock.sendall(iq_xml.encode())
+
         return mid
 
     def upload_avatar(self, token: str, image_data: bytes, thumbnail_data: bytes = None) -> tuple[str, str]:
@@ -99,7 +102,7 @@ class ToDusProfileMixin:
 
         from .file import ToDusFileMixin
         from ..types import FileType
-        
+
         up_url, down_url = ToDusFileMixin.reserve_upload_url(self, token, len(image_data), FileType.PROFILE)
         resp = self.session.put(
             up_url,
@@ -110,7 +113,12 @@ class ToDusProfileMixin:
         resp.raise_for_status()
         profile_url = down_url
 
-        up_url, down_url = ToDusFileMixin.reserve_upload_url(self, token, len(thumbnail_data), FileType.PROFILE_THUMBNAIL)
+        up_url, down_url = ToDusFileMixin.reserve_upload_url(
+            self,
+            token,
+            len(thumbnail_data),
+            FileType.PROFILE_THUMBNAIL,
+        )
         resp = self.session.put(
             up_url,
             data=thumbnail_data,
