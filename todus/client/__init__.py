@@ -85,6 +85,7 @@ class ToDusClient2(ToDusClient):
         self.password = password.strip() if password else ""
         self._token = ""
         self._group_client = None
+        self._seen_msg_ids: set = set()  # dedup de mensajes recibidos
 
     def _authstr_from_token(self, token: str) -> tuple[str, bytes]:
         phone, authstr = super()._authstr_from_token(token)
@@ -336,9 +337,23 @@ class ToDusClient2(ToDusClient):
         return super().get_real_download_url(self._token, url)
 
     def upload_file(self, data: bytes, file_type: FileType = FileType.FILE, progress_callback: Callable[[int, int], None] = None, file_name: str = "") -> str:
+        """Sube un archivo a ToDus.
+
+        Fix LSP: implementa la lógica directamente en vez de llamar super().upload_file()
+        que internamente llama self.reserve_upload_url(token, ...) causando colisión de
+        parámetros con el override de ToDusClient2.reserve_upload_url(size, file_type, ...).
+        """
         if not self._token:
             raise AuthenticationError("No autenticado")
-        return super().upload_file(self._token, data, file_type, progress_callback, file_name=file_name)
+        up_url, down_url = self.reserve_upload_url(len(data), file_type, file_name=file_name)
+        from .file import _ProgressReader
+        upload_data = _ProgressReader(data, progress_callback) if progress_callback else data
+        resp = self.session.put(up_url, data=upload_data,
+                               headers={"Content-Length": str(len(data))}, timeout=60)
+        resp.raise_for_status()
+        if progress_callback:
+            progress_callback(len(data), len(data))
+        return down_url
 
     def download_file(self, url: str, path: str) -> int:
         if not self._token:

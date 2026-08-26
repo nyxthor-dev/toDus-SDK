@@ -251,6 +251,19 @@ class ToDusMessageMixin:
         """
         dispatched = []
 
+        # Deduplicación: saltar mensajes ya procesados
+        msg_id = msg.get("id", "")
+        if msg_id and hasattr(self, "_seen_msg_ids"):
+            if msg_id in self._seen_msg_ids:
+                return dispatched
+            self._seen_msg_ids.add(msg_id)
+            # Limitar tamaño del set para evitar fuga de memoria
+            if len(self._seen_msg_ids) > 10000:
+                # Eliminar los 5000 más viejos
+                to_remove = list(self._seen_msg_ids)[:5000]
+                for old_id in to_remove:
+                    self._seen_msg_ids.discard(old_id)
+
         # determinar si es 'mensaje' (contenido multimedia/texto)
         is_content = (
             msg.get("body")
