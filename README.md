@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/logo.png" alt="toDus-API" width="128"/>
+</p>
+
 <h1 align="center">📱 toDus-API</h1>
 
 <p align="center">
@@ -193,6 +197,7 @@ Agradecemos a todos los que han contribuido:
 ---
 
 <p align="center">
+  <img src="docs/assets/logo.png" width="64" alt="logo"/><br>
   Desarrollado con ❤️ por <strong>nyxthor-dev</strong><br>
   <em>Basado en el trabajo original de OrionWolf</em>
 </p>

@@ -22,7 +22,7 @@ from .cache import MessageStore, Message, MessageStatus, MessageQueue
 from .events import EventBus
 from .ratelimit import RateLimiter
 
-__version__ = "1.6.0"  # Rate limiter + MAM + fixes criticos
+__version__ = "1.7.0"  # LSP fix, send_stanza+jid, dedup, release workflow
 
 __all__ = [
     "ToDusClient",

@@ -5,6 +5,23 @@ Todos los cambios notables en este proyecto se documentan en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/),
 y este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.7.0] - 2026-08-26
+
+### Fixed
+- **Violación LSP en `upload_file()`**: `ToDusClient2.upload_file()` ahora implementa la lógica de subida directamente en vez de llamar a `super().upload_file()`, que internamente resolvía `self.reserve_upload_url(token, ...)` al override `ToDusClient2.reserve_upload_url(size, file_type, ...)` causando `TypeError: multiple values for argument 'file_name'`.
+- **`ratelimit.wait()` UnboundLocalError**: Inicializado `sleep_time = 0.0` antes del lock para evitar el error cuando el rate limit no se alcanza.
+- **Redelivery de mensajes de ToDus**: `handle_parsed_stanza()` ahora deduplica mensajes por `msg_id` usando el set `_seen_msg_ids` (auto-trim a 10 000 entradas). Previene respuestas repetidas al reconectar.
+
+### Changed
+- **26 métodos de 6 mixins migrados a `send_stanza + jid`**: Los mixins `Status`, `Privacy`, `Block`, `Location`, `Call` y `Last` ahora usan `self.send_stanza(stanza_xml)` y `self.jid` en vez de requerir `token` y `_xmpp_session()` directamente. Esto los hace compatibles con `ToDusClient2` sin necesidad de pasar el token manualmente.
+- **Logo del proyecto** añadido a la documentación (MkDocs) y al README.
+
+### Added
+- **Workflow de releases**: Nuevo workflow `.github/workflows/release.yml` que crea automáticamente un GitHub Release extrayendo el texto de la versión correspondiente del `CHANGELOG.md`.
+- Imagen `docs/assets/logo.png` (logo del proyecto).
+
+---
+
 ## [1.6.0] - 2026-08-20
 
 ### Changed

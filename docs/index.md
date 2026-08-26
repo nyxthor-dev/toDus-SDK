@@ -1,4 +1,4 @@
-# ToDus SDK para Python
+# <img src="assets/logo.png" alt="ToDus SDK" width="128"/> ToDus SDK para Python
 
 Biblioteca Python para interactuar con **ToDus**, la plataforma de mensajería instantánea cubana. Implementa los protocolos XMPP y HTTP con una API simple y directa.
 

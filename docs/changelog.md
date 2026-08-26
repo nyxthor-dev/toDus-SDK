@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.7.0
+
+### Corregido
+
+- **Violacion LSP en `upload_file()`**: implementacion directa en ToDusClient2 para evitar colision de firmas en `reserve_upload_url`
+- **`ratelimit.wait()` UnboundLocalError**: `sleep_time` inicializado antes del lock
+- **Redelivery de mensajes**: deduplicacion por `msg_id` con `_seen_msg_ids` (auto-trim a 10k)
+
+### Cambiado
+
+- **26 metodos de 6 mixins migrados a `send_stanza + jid`**: Status, Privacy, Block, Location, Call y Last ahora usan `self.send_stanza()` y `self.jid`
+- Logo del proyecto anadido a MkDocs y README
+
+### Agregado
+
+- Workflow de releases automatico desde CHANGELOG (`release.yml`)
+- Imagen `docs/assets/logo.png`
+
 ## 1.6.0
 
 ### Corregido
