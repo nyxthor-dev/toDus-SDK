@@ -1,5 +1,5 @@
 """ToDus Python Library - Cliente XMPP/HTTP para ToDus."""
-
+ 
 from .client import ToDusClient, ToDusClient2
 from .client_with_queue import ToDusClientWithQueue
 from .group import GroupClient, GroupRole, GroupEvent
@@ -21,9 +21,9 @@ from .parser import IncrementalParser, parse_tdack
 from .cache import MessageStore, Message, MessageStatus, MessageQueue
 from .events import EventBus
 from .ratelimit import RateLimiter
-
+ 
 __version__ = "1.7.0"  # LSP fix, send_stanza+jid, dedup, release workflow
-
+ 
 __all__ = [
     "ToDusClient",
     "ToDusClient2",
