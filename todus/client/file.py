@@ -3,12 +3,30 @@ import re
 import time
 import logging
 from typing import Callable
-import requests
 from .. import util, stanza
 from ..types import FileType
 from ..errors import ConnectionLostError, TokenExpiredError, UploadError
 
 logger = logging.getLogger("todus")
+
+# URLs que la APK descarga SIN cabecera Authorization (TokenAuthenticator.java)
+NO_AUTH_URL_MARKERS = ("/official/", "/catalog/", "/status/", "/stream/")
+
+
+def _download_headers(token: str) -> dict:
+    """Cabeceras de descarga alineadas con la APK oficial.
+
+    La APK solo envía ``Authorization: Bearer`` cuando la URL no contiene
+    /official/, /catalog/, /status/ o /stream/.
+    """
+    headers = {"User-Agent": "okhttp/4.9.0"}
+    if token:
+        headers["Authorization"] = "Bearer " + token
+    return headers
+
+
+def _needs_auth(url: str) -> bool:
+    return not any(marker in url for marker in NO_AUTH_URL_MARKERS)
 
 
 class _ProgressReader:
@@ -50,7 +68,7 @@ class ToDusFileMixin:
         sanitized_name = util.sanitize_filename(file_name, int(file_type))
 
         with self._xmpp_session(token) as sock:
-            sock.send(stanza.upload_query(sid, size, int(file_type), file_name=sanitized_name).encode())
+            sock.sendall(stanza.upload_query(sid, size, int(file_type), file_name=sanitized_name).encode())
             while True:
                 response = self._recv_all(sock)
                 if response is None:
@@ -74,7 +92,7 @@ class ToDusFileMixin:
         sid = util.generate_token(5)
 
         with self._xmpp_session(token) as sock:
-            sock.send(stanza.download_query(sid, url).encode())
+            sock.sendall(stanza.download_query(sid, url).encode())
             while True:
                 response = self._recv_all(sock)
                 if response is None:
@@ -91,13 +109,24 @@ class ToDusFileMixin:
 
         return ""
 
-    def upload_file(self, token: str, data: bytes, file_type: FileType = FileType.FILE, progress_callback: Callable[[int, int], None] = None, file_name: str = "") -> str:
+    def upload_file(
+        self,
+        token: str,
+        data: bytes,
+        file_type: FileType = FileType.FILE,
+        progress_callback: Callable[[int, int], None] = None,
+        file_name: str = "",
+    ) -> str:
         up_url, down_url = self.reserve_upload_url(token, len(data), file_type, file_name=file_name)
         upload_data = _ProgressReader(data, progress_callback) if progress_callback else data
         resp = self.session.put(
             up_url,
             data=upload_data,
-            headers={"Content-Length": str(len(data))},
+            headers={
+                # La APK sube con application/octet-stream (UploadDataSource)
+                "Content-Type": "application/octet-stream",
+                "Content-Length": str(len(data)),
+            },
             timeout=60,
         )
         resp.raise_for_status()
@@ -107,10 +136,7 @@ class ToDusFileMixin:
 
     def download_file(self, token: str, url: str, path: str, max_retries: int = 10) -> int:
         real_url = self.get_real_download_url(token, url)
-        headers = {
-            "User-Agent": "ToDus " + self.version_name + " HTTP-Download",
-            "Authorization": "Bearer " + token,
-        }
+        headers = _download_headers(token if _needs_auth(real_url) else "")
         temp_path = path + ".part"
         size = -1
         retry_count = 0
@@ -127,6 +153,10 @@ class ToDusFileMixin:
                             size = content_len
                         elif content_len > 0:
                             size = pos + content_len
+                        else:
+                            # Sin Content-Length: descarga en una sola pasada
+                            # para evitar un bucle infinito.
+                            size = pos
                         for chunk in resp.iter_content(chunk_size=8192):
                             f.write(chunk)
                         retry_count = 0
@@ -142,10 +172,7 @@ class ToDusFileMixin:
         return size
 
     def download_file_to_folder(self, token: str, url: str, folder: str, filename: str = "") -> tuple[int, str]:
-        headers = {
-            "User-Agent": "ToDus " + self.version_name + " HTTP-Download",
-            "Authorization": "Bearer " + token,
-        }
+        headers = _download_headers(token if _needs_auth(url) else "")
 
         os.makedirs(folder, exist_ok=True)
 

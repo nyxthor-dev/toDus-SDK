@@ -2,7 +2,7 @@ import logging
 import re
 import socket
 import ssl
-import string
+import threading
 from base64 import b64encode
 from contextlib import contextmanager
 import requests
@@ -14,6 +14,42 @@ from ..ratelimit import RateLimiter
 logger = logging.getLogger("todus")
 
 
+class ThreadSafeSocket:
+    """Wrapper de socket SSL con escrituras atómicas.
+
+    ``send()`` de un socket SSL puede hacer *partial writes* y no es
+    thread-safe. Este wrapper expone ``sendall()`` protegido por un lock
+    para que el hilo de keepalive y el loop principal puedan escribir
+    sobre el mismo socket sin corromper el registro TLS.
+    """
+
+    def __init__(self, sock: ssl.SSLSocket) -> None:
+        self._sock = sock
+        self._send_lock = threading.Lock()
+
+    def sendall(self, data: bytes) -> None:
+        """Escribe todo el buffer de forma atómica."""
+        with self._send_lock:
+            self._sock.sendall(data)
+
+    def send(self, data: bytes) -> int:
+        """Compatibilidad: redirige a ``sendall`` (evita partial writes)."""
+        with self._send_lock:
+            self._sock.sendall(data)
+        return len(data)
+
+    def recv(self, bufsize: int) -> bytes:
+        return self._sock.recv(bufsize)
+
+    def close(self) -> None:
+        with self._send_lock:
+            self._sock.close()
+
+    def __getattr__(self, name):
+        """Delega el resto de atributos al socket real (settimeout, etc.)."""
+        return getattr(self._sock, name)
+
+
 class ToDusClientBase:
     """Clase base para el cliente ToDus que maneja el socket XMPP y HTTP."""
 
@@ -23,11 +59,13 @@ class ToDusClientBase:
         version_code: str = constants.AUTH_VERSION_CODE,
         proxy: str | None = None,
         verify_ssl: bool = False,
+        xmpp_port: int = constants.XMPP_PORT,
     ) -> None:
         self.version_name = version_name
         self.version_code = version_code
         self.proxy = proxy
         self.verify_ssl = verify_ssl
+        self.xmpp_port = xmpp_port
         self.session = requests.Session()
         self.session.headers.update({"Accept-Encoding": "gzip"})
         self.session.verify = verify_ssl
@@ -75,7 +113,7 @@ class ToDusClientBase:
 
     # --- XMPP Socket ---
 
-    def _connect_xmpp(self) -> ssl.SSLSocket:
+    def _connect_xmpp(self) -> ThreadSafeSocket:
         if self.proxy:
             import socks
             proxy_type, host, port, username, password = self._parse_proxy(self.proxy)
@@ -85,16 +123,16 @@ class ToDusClientBase:
             raw_sock = socket.socket(socket.AF_INET)
 
         raw_sock.settimeout(constants.DEFAULT_TIMEOUT)
-        raw_sock.connect((constants.XMPP_HOST, constants.XMPP_PORT))
+        raw_sock.connect((constants.XMPP_HOST, self.xmpp_port))
 
         ctx = ssl.create_default_context()
         ctx.check_hostname = self.verify_ssl
         ctx.verify_mode = ssl.CERT_REQUIRED if self.verify_ssl else ssl.CERT_NONE
         sock = ctx.wrap_socket(raw_sock, server_hostname=constants.XMPP_HOST)
-        sock.send(stanza.stream_open().encode())
-        return sock
+        sock.sendall(stanza.stream_open().encode())
+        return ThreadSafeSocket(sock)
 
-    def _recv_all(self, sock: ssl.SSLSocket) -> str | None:
+    def _recv_all(self, sock) -> str | None:
         data = b""
         while True:
             try:
@@ -125,19 +163,19 @@ class ToDusClientBase:
 
         if phase == "init":
             if "<stream:features><es xmlns='x2'>" in response:
-                sock.send(stanza.sasl_auth(authstr))
+                sock.sendall(stanza.sasl_auth(authstr))
                 state["phase"] = "auth_sent"
                 return True
             if response.startswith("<?xml version='1.0'?><stream:stream"):
                 if "<stream:features>" in response:
-                    sock.send(stanza.sasl_auth(authstr))
+                    sock.sendall(stanza.sasl_auth(authstr))
                     state["phase"] = "auth_sent"
                 return True
             return True
 
         if phase == "auth_sent":
             if "<ok xmlns='x2'/>" in response:
-                sock.send(stanza.stream_restart().encode())
+                sock.sendall(stanza.stream_restart().encode())
                 state["phase"] = "restream"
                 return True
             if "<not-authorized/>" in response:
@@ -146,11 +184,12 @@ class ToDusClientBase:
 
         if phase == "restream":
             if "<stream:features><b1 xmlns='x4'/>" in response:
-                sock.send(stanza.bind(sid + "-1").encode())
+                sock.sendall(stanza.bind(sid + "-1", username=state.get("username", "")).encode())
                 state["phase"] = "bind_sent"
                 return True
-            if response.startswith("<?xml version='1.0'?><stream:stream") and "<stream:features><b1 xmlns='x4'/>" in response:
-                sock.send(stanza.bind(sid + "-1").encode())
+            if (response.startswith("<?xml version='1.0'?><stream:stream")
+                    and "<stream:features><b1 xmlns='x4'/>" in response):
+                sock.sendall(stanza.bind(sid + "-1", username=state.get("username", "")).encode())
                 state["phase"] = "bind_sent"
                 return True
             return True
@@ -164,10 +203,10 @@ class ToDusClientBase:
 
         return True
 
-    def _handshake(self, sock: ssl.SSLSocket, token: str) -> None:
-        _, authstr = self._authstr_from_token(token)
+    def _handshake(self, sock, token: str) -> None:
+        phone, authstr = self._authstr_from_token(token)
         sid = util.generate_token(5)
-        state = {"phase": "init"}
+        state = {"phase": "init", "username": phone}
 
         while True:
             response = self._recv_all(sock)
@@ -186,11 +225,11 @@ class ToDusClientBase:
         sock = self._connect_xmpp()
         try:
             self._handshake(sock, token)
-            sock.send(stanza.presence().encode())
+            sock.sendall(stanza.presence().encode())
             yield sock
         finally:
             try:
-                sock.send(stanza.stream_close().encode())
+                sock.sendall(stanza.stream_close().encode())
             except Exception:
                 pass
             try:

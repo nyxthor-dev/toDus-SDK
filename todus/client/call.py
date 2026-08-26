@@ -3,6 +3,7 @@
 from ..stanzas import call
 from .. import util
 
+
 class ToDusCallMixin:
     """Mixin que añade capacidades de Señalización de Llamadas a los clientes ToDus."""
 

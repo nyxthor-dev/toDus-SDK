@@ -1,7 +1,6 @@
 import time
 import tempfile
 import os
-import pytest
 from todus.cache import MessageStore, Message, MessageStatus
 
 

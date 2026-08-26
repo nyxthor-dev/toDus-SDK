@@ -1,5 +1,6 @@
 """Utilidades para ToDus."""
 
+import hashlib
 import json
 import re
 import secrets
@@ -14,13 +15,36 @@ def generate_token(length: int = 8) -> str:
     return "".join(secrets.choice(chars) for _ in range(length))
 
 
-def normalize_phone(phone_number: str) -> str:
-    """Normaliza número cubano a formato 53XXXXXXXX."""
-    phone_number = "".join(phone_number.lstrip("+").split())
-    match = re.match(r"(53)?(\d{8})", phone_number)
-    if not match:
+def generate_msg_id() -> str:
+    """Genera msg_id en formato hex de 32 chars, como usa ToDus oficial."""
+    return hashlib.md5(generate_token(16).encode()).hexdigest()
+
+
+def normalize_phone(phone_number: str, country_code: str = "53") -> str:
+    """Normaliza número de teléfono al formato internacional sin '+'.
+
+    Por defecto asume Cuba (``53``): acepta ``53XXXXXXXX`` (10 dígitos)
+    o el número nacional de 8 dígitos. Para otros países pasar
+    ``country_code`` explícitamente (números E.164 de hasta 15 dígitos).
+
+    A diferencia de versiones anteriores, rechaza entradas inválidas
+    (longitudes incorrectas) en lugar de truncarlas silenciosamente.
+    """
+    cleaned = re.sub(r"[\s+()\-.]", "", str(phone_number))
+    if not cleaned.isdigit():
         raise ValueError(f"Número inválido: {phone_number}")
-    return "53" + match.group(2)
+    national_len = 8
+    if cleaned.startswith(country_code) and len(cleaned) == len(country_code) + national_len:
+        return cleaned
+    if len(cleaned) == national_len:
+        return country_code + cleaned
+    if cleaned.startswith(country_code) and 11 <= len(cleaned) <= 15:
+        # Número internacional E.164 válido con otro country code
+        return cleaned
+    raise ValueError(
+        f"Número inválido: {phone_number} (se esperaban {national_len} dígitos "
+        f"nacionales o {len(country_code) + national_len} con prefijo {country_code})"
+    )
 
 
 def build_jid(phone_number: str) -> str:
@@ -90,13 +114,11 @@ def get_image_dimensions(data: bytes) -> tuple[int, int]:
     """Extrae dimensiones de imagen JPEG/PNG sin decodificar completamente."""
     width = height = 0
 
-    # PNG
+    # PNG: el chunk IHDR empieza en el offset 8 (longitud 4 + 'IHDR')
     if data.startswith(b'\x89PNG\r\n\x1a\n'):
-        for i in range(0, len(data) - 8, 8):
-            if data[i:i+4] == b'IHDR':
-                width = int.from_bytes(data[i+4:i+8], 'big')
-                height = int.from_bytes(data[i+8:i+12], 'big')
-                break
+        if len(data) >= 24 and data[12:16] == b'IHDR':
+            width = int.from_bytes(data[16:20], 'big')
+            height = int.from_bytes(data[20:24], 'big')
 
     # JPEG
     elif data.startswith(b'\xff\xd8'):
@@ -121,7 +143,6 @@ def generate_blurhash(width: int, height: int) -> str:
     Genera un hash que varía según las dimensiones de la imagen.
     Para producción completa, usar la librería `blurhash-python`.
     """
-    import hashlib
     data = f"{width}x{height}".encode()
     digest = hashlib.md5(data).digest()
     chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#$%*+,-.:;=?@[\\]^_{|}~"
@@ -137,7 +158,7 @@ def sanitize_filename(filename: str, file_type: int = 0) -> str:
     """Limpia caracteres problemáticos en el nombre del archivo para URLs, asegurando extensión según el tipo."""
     import os
     from .types import FileType
-    
+
     # Mapeo de extensiones por defecto por tipo
     default_exts = {
         FileType.PICTURE: ".jpg",
@@ -148,9 +169,9 @@ def sanitize_filename(filename: str, file_type: int = 0) -> str:
         FileType.PROFILE: ".jpg",
         FileType.PROFILE_THUMBNAIL: ".jpg",
     }
-    
+
     default_ext = default_exts.get(file_type, ".bin")
-    
+
     if not filename:
         # Generar nombre por defecto por tipo
         default_names = {
@@ -167,22 +188,21 @@ def sanitize_filename(filename: str, file_type: int = 0) -> str:
     else:
         # Solo el nombre del archivo si es una ruta
         filename = os.path.basename(filename)
-        
+
         # Separar nombre y extensión
         parts = filename.rsplit(".", 1)
         stem = parts[0]
         ext = "." + parts[1] if len(parts) > 1 else ""
-        
+
         # Si no tiene extensión, usar la correspondiente al tipo
         if not ext:
             ext = default_ext
-            
+
     # Reemplazar caracteres no permitidos en nombres de archivos o problemáticos en URLs
     stem_clean = re.sub(r'[\\/*?:"<>|\s]', "_", stem)
-    
+
     # Limitar longitud para evitar URLs excesivamente largas
     if len(stem_clean) > 50:
         stem_clean = stem_clean[:47] + "..."
-        
-    return f"{stem_clean}{ext}"
 
+    return f"{stem_clean}{ext}"

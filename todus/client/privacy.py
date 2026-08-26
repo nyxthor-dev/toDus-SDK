@@ -2,6 +2,7 @@
 
 from ..stanzas import privacy
 
+
 class ToDusPrivacyMixin:
     """Mixin que añade capacidades de Privacidad a los clientes ToDus."""
 
@@ -10,7 +11,12 @@ class ToDusPrivacyMixin:
         stanza = privacy.get_profile_privacy()
         return self.send_stanza(stanza)
 
-    def set_profile_privacy(self, profile_photo: str = "everyone", last: str = "everyone", info: str = "everyone") -> str:
+    def set_profile_privacy(
+        self,
+        profile_photo: str = "everyone",
+        last: str = "everyone",
+        info: str = "everyone",
+    ) -> str:
         """Configura la privacidad de tu perfil."""
         stanza = privacy.set_profile_privacy(profile_photo, last, info)
         return self.send_stanza(stanza)

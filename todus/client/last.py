@@ -3,6 +3,7 @@
 from ..stanzas import last
 from .. import util
 
+
 class ToDusLastMixin:
     """Mixin que añade capacidades de consultar Última Conexión a los clientes ToDus."""
 

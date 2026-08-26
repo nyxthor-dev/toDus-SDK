@@ -7,8 +7,7 @@ import threading
 import time
 from pathlib import Path
 from dataclasses import dataclass, asdict
-from typing import Optional, List, Callable
-from datetime import datetime
+from typing import Optional, List
 from enum import StrEnum
 
 logger = logging.getLogger("todus.cache")
@@ -71,7 +70,7 @@ class MessageStore:
         """Inicializa la BD. Si db_path es None, usa ':memory:'."""
         if db_path is None:
             db_path = str(Path.home() / ".todus" / "messages.db")
-        
+
         self.db_path = db_path
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
@@ -114,14 +113,14 @@ class MessageStore:
             try:
                 with sqlite3.connect(self.db_path) as conn:
                     conn.execute("""
-                        INSERT OR REPLACE INTO messages 
-                        (msg_id, "to", body, msg_type, status, created_at, sent_at, 
+                        INSERT OR REPLACE INTO messages
+                        (msg_id, "to", body, msg_type, status, created_at, sent_at,
                          delivered_at, read_at, retry_count, max_retries, last_error, metadata)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, (
                         msg.msg_id, msg.to, msg.body, msg.msg_type, str(msg.status),
                         msg.created_at, msg.sent_at, msg.delivered_at, msg.read_at,
-                        msg.retry_count, msg.max_retries, msg.last_error, 
+                        msg.retry_count, msg.max_retries, msg.last_error,
                         json.dumps(msg.metadata) if msg.metadata else '{}'
                     ))
                     conn.commit()
@@ -245,7 +244,7 @@ class MessageStore:
                 cutoff_time = time.time() - (days * 86400)
                 with sqlite3.connect(self.db_path) as conn:
                     cursor = conn.execute("""
-                        DELETE FROM messages 
+                        DELETE FROM messages
                         WHERE created_at < ? AND status IN (?, ?)
                     """, (cutoff_time, str(MessageStatus.READ), str(MessageStatus.DELIVERED)))
                     conn.commit()

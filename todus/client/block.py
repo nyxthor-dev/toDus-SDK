@@ -3,6 +3,7 @@
 from ..stanzas import block
 from .. import util
 
+
 class ToDusBlockMixin:
     """Mixin que añade capacidades de Bloqueo a los clientes ToDus."""
 

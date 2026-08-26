@@ -1,12 +1,8 @@
 """Cliente XMPP/HTTP para ToDus, unificado mediante Mixins."""
 
 import logging
-import socket
-import time
-import random
 from base64 import b64encode
 from typing import Callable
-from functools import wraps
 
 from .base import ToDusClientBase
 from .auth import ToDusAuthMixin
@@ -22,9 +18,8 @@ from .block import ToDusBlockMixin
 from .last import ToDusLastMixin
 from .location import ToDusLocationMixin
 from .call import ToDusCallMixin
-from ..errors import AuthenticationError, TokenExpiredError, ConnectionLostError
+from ..errors import AuthenticationError
 from ..types import FileType
-from .. import util
 from ..events import EventBus
 
 logger = logging.getLogger("todus")
@@ -96,12 +91,12 @@ class ToDusClient2(ToDusClient):
 
     def _is_group_target(self, target: str) -> bool:
         """Detecta si el target es un group_id en lugar de un teléfono.
-        
+
         Se considera teléfono si:
         - Es un string de solo dígitos
         - Tiene entre 8 y 15 caracteres
         - Empieza con '53' (Cuba) o '+' seguido de código de país
-        
+
         Cualquier otra cosa (group IDs alfanuméricos, JIDs, etc.) se trata como grupo.
         """
         if not target:
@@ -121,15 +116,6 @@ class ToDusClient2(ToDusClient):
             return "muclight" in target or "group" in target.lower()
         # Default: tratar como grupo
         return True
-
-    def _require_token(self, func: Callable) -> Callable:
-        """Decorator para verificar que hay token válido antes de ejecutar método."""
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            if not self._token:
-                raise AuthenticationError("No autenticado. Ejecuta login() primero.")
-            return func(*args, **kwargs)
-        return wrapper
 
     @property
     def jid(self) -> str:
@@ -155,7 +141,7 @@ class ToDusClient2(ToDusClient):
         if not self._token:
             raise AuthenticationError("No autenticado. Ejecuta login() primero.")
         with self._xmpp_session(self._token) as sock:
-            sock.send(stanza_xml.encode())
+            sock.sendall(stanza_xml.encode())
         # Extraer el id de la stanza (formato: id='xxx' o i='xxx')
         for prefix in ("id='", "i='"):
             if prefix in stanza_xml:
@@ -179,7 +165,6 @@ class ToDusClient2(ToDusClient):
             from ..group import GroupClient
             self._group_client = GroupClient(self)
         return self._group_client
-
 
     def login(self) -> None:
         if not self.password:
@@ -216,9 +201,13 @@ class ToDusClient2(ToDusClient):
         if not self._token:
             raise AuthenticationError("No autenticado")
         if self._is_group_target(to_phone):
-            return self.groups.send_file(to_phone, url, file_type, caption, file_name, file_size, reply_to_id=reply_to_id)
+            return self.groups.send_file(to_phone, url, file_type, caption,
+                                         file_name, file_size,
+                                         reply_to_id=reply_to_id)
         to_jid = util.build_jid(to_phone)
-        return super().send_file_message(self._token, to_jid, url, file_type, caption, file_name, file_size, reply_to_id)
+        return super().send_file_message(self._token, to_jid, url, file_type,
+                                         caption, file_name, file_size,
+                                         reply_to_id)
 
     def send_image_message(self, to_phone: str, url: str, file_name: str, file_size: int,
                            width: int = 0, height: int = 0, thumbnail: str = "",
@@ -226,18 +215,26 @@ class ToDusClient2(ToDusClient):
         if not self._token:
             raise AuthenticationError("No autenticado")
         if self._is_group_target(to_phone):
-            return self.groups.send_image(to_phone, url, file_name, file_size, width, height, thumbnail, caption, reply_to_id=reply_to_id)
+            return self.groups.send_image(to_phone, url, file_name,
+                                          file_size, width, height, thumbnail,
+                                          caption, reply_to_id=reply_to_id)
         to_jid = util.build_jid(to_phone)
-        return super().send_image_message(self._token, to_jid, url, file_name, file_size, width, height, thumbnail, caption, reply_to_id)
+        return super().send_image_message(self._token, to_jid, url, file_name,
+                                          file_size, width, height, thumbnail,
+                                          caption, reply_to_id)
 
     def send_image_message_simple(self, to_phone: str, url: str, file_name: str,
                                   file_size: int, reply_to_id: str = "") -> str:
         if not self._token:
             raise AuthenticationError("No autenticado")
         if self._is_group_target(to_phone):
-            return self.groups.send_image(to_phone, url, file_name, file_size, reply_to_id=reply_to_id)
+            return self.groups.send_image(to_phone, url, file_name,
+                                          file_size,
+                                          reply_to_id=reply_to_id)
         to_jid = util.build_jid(to_phone)
-        return super().send_image_message_simple(self._token, to_jid, url, file_name, file_size, reply_to_id=reply_to_id)
+        return super().send_image_message_simple(self._token, to_jid, url,
+                                                 file_name, file_size,
+                                                 reply_to_id=reply_to_id)
 
     def send_button_message(self, to_phone: str, text: str, buttons: list[dict],
                             reply_to_id: str = "") -> str:
@@ -264,9 +261,14 @@ class ToDusClient2(ToDusClient):
         if not self._token:
             raise AuthenticationError("No autenticado")
         if self._is_group_target(to_phone):
-            return self.groups.send_sticker(to_phone, sticker_id, sticker_name, sticker_pack, sticker_hash, reply_to_id=reply_to_id)
+            return self.groups.send_sticker(to_phone, sticker_id,
+                                            sticker_name, sticker_pack,
+                                            sticker_hash,
+                                            reply_to_id=reply_to_id)
         to_jid = util.build_jid(to_phone)
-        return super().send_sticker_message(self._token, to_jid, sticker_id, sticker_name, sticker_pack, sticker_hash, reply_to_id)
+        return super().send_sticker_message(self._token, to_jid, sticker_id,
+                                            sticker_name, sticker_pack,
+                                            sticker_hash, reply_to_id)
 
     def send_video_message(self, to_phone: str, url: str, video_id: str,
                            file_name: str, file_size: int, duration: int,
@@ -275,9 +277,77 @@ class ToDusClient2(ToDusClient):
         if not self._token:
             raise AuthenticationError("No autenticado")
         if self._is_group_target(to_phone):
-            return self.groups.send_video(to_phone, url, video_id, file_name, file_size, duration, width, height, thumbnail, info_text, reply_to_id=reply_to_id)
+            return self.groups.send_video(to_phone, url, video_id,
+                                          file_name, file_size, duration,
+                                          width, height, thumbnail, info_text,
+                                          reply_to_id=reply_to_id)
         to_jid = util.build_jid(to_phone)
-        return super().send_video_message(self._token, to_jid, url, video_id, file_name, file_size, duration, width, height, thumbnail, info_text, reply_to_id)
+        return super().send_video_message(self._token, to_jid, url, video_id,
+                                          file_name, file_size, duration,
+                                          width, height, thumbnail,
+                                          info_text, reply_to_id)
+
+    def send_voice_message(self, to_phone: str, url: str, file_name: str,
+                           file_size: int, duration: int, wave_sample: str = "",
+                           caption: str = "", reply_to_id: str = "") -> str:
+        """Envía nota de voz (voice:n). Funciona en privado y grupos."""
+        if not self._token:
+            raise AuthenticationError("No autenticado")
+        if self._is_group_target(to_phone):
+            return self.groups.send_voice(to_phone, url, file_name, file_size,
+                                          duration, wave_sample, caption, reply_to_id=reply_to_id)
+        to_jid = util.build_jid(to_phone)
+        return super().send_voice_message(self._token, to_jid, url, file_name,
+                                          file_size, duration, wave_sample,
+                                          caption, reply_to_id)
+
+    def send_gif_message(self, to_phone: str, url: str, file_name: str,
+                         file_size: int, width: int = 0, height: int = 0,
+                         thumbnail: str = "", caption: str = "", reply_to_id: str = "") -> str:
+        """Envía GIF (gif:n). Funciona en privado y grupos."""
+        if not self._token:
+            raise AuthenticationError("No autenticado")
+        if self._is_group_target(to_phone):
+            return self.groups.send_gif(to_phone, url, file_name, file_size,
+                                        width, height, thumbnail, caption, reply_to_id=reply_to_id)
+        to_jid = util.build_jid(to_phone)
+        return super().send_gif_message(self._token, to_jid, url, file_name,
+                                        file_size, width, height, thumbnail,
+                                        caption, reply_to_id)
+
+    def send_reaction(self, to_phone: str, reacted_msg_id: str, reaction_code: str) -> str:
+        """Envía una reacción (reaction:n) a un mensaje."""
+        if not self._token:
+            raise AuthenticationError("No autenticado")
+        if self._is_group_target(to_phone):
+            return self.groups.send_reaction(to_phone, reacted_msg_id, reaction_code)
+        to_jid = util.build_jid(to_phone)
+        return super().send_reaction(self._token, to_jid, reacted_msg_id, reaction_code)
+
+    def forward_message(self, to_phone: str, original_msg_id: str,
+                        original_owner: str = "", body: str = "") -> str:
+        """Reenvía un mensaje (resend:n)."""
+        if not self._token:
+            raise AuthenticationError("No autenticado")
+        to_jid = util.build_jid(to_phone) if not self._is_group_target(to_phone) else to_phone
+        return super().forward_message(self._token, to_jid, original_msg_id,
+                                       original_owner, body)
+
+    def send_stream_video_message(self, to_phone: str, guid: str, stream_url: str,
+                                  duration: int = 0, extra_codec: str = "") -> str:
+        """Envía video en stream (streamvideo:n)."""
+        if not self._token:
+            raise AuthenticationError("No autenticado")
+        to_jid = util.build_jid(to_phone) if not self._is_group_target(to_phone) else to_phone
+        return super().send_stream_video_message(self._token, to_jid, guid,
+                                                 stream_url, duration, extra_codec)
+
+    def send_call_signal(self, to_phone: str, call_state: str, call_id: str) -> str:
+        """Envía señalización de llamada (tcall:n)."""
+        if not self._token:
+            raise AuthenticationError("No autenticado")
+        to_jid = util.build_jid(to_phone) if not self._is_group_target(to_phone) else to_phone
+        return super().send_call_signal(self._token, to_jid, call_state, call_id)
 
     def send_location_message(self, to_phone: str, lat: float, lon: float,
                               zoom: float = 11.0, text: str = "",
@@ -295,9 +365,13 @@ class ToDusClient2(ToDusClient):
         if not self._token:
             raise AuthenticationError("No autenticado")
         if self._is_group_target(to_phone):
-            return self.groups.send_event(to_phone, title, start, end, all_day, ics_data, event_id, reply_to_id=reply_to_id)
+            return self.groups.send_event(to_phone, title, start, end,
+                                          all_day, ics_data, event_id,
+                                          reply_to_id=reply_to_id)
         to_jid = util.build_jid(to_phone)
-        return super().send_event_message(self._token, to_jid, title, start, end, all_day, ics_data, event_id, reply_to_id)
+        return super().send_event_message(self._token, to_jid, title,
+                                          start, end, all_day, ics_data,
+                                          event_id, reply_to_id)
 
     def send_chat_state(self, to_phone: str, state: str) -> None:
         # Solo privado; si es grupo, ignoramos
@@ -312,9 +386,13 @@ class ToDusClient2(ToDusClient):
         if not self._token:
             raise AuthenticationError("No autenticado")
         if self._is_group_target(to_phone):
-            return self.groups.delete_message(to_phone, message_id, body, media_xml, reply_to_id=reply_to_id)
+            return self.groups.delete_message(to_phone, message_id, body,
+                                              media_xml,
+                                              reply_to_id=reply_to_id)
         to_jid = util.build_jid(to_phone)
-        return super().delete_message(self._token, to_jid, message_id, body=body, media_xml=media_xml, reply_to_id=reply_to_id)
+        return super().delete_message(self._token, to_jid, message_id,
+                                      body=body, media_xml=media_xml,
+                                      reply_to_id=reply_to_id)
 
     def send_read_receipt(self, to_phone: str, msg_id: str) -> str:
         if not self._token:
@@ -336,7 +414,9 @@ class ToDusClient2(ToDusClient):
             raise AuthenticationError("No autenticado")
         return super().get_real_download_url(self._token, url)
 
-    def upload_file(self, data: bytes, file_type: FileType = FileType.FILE, progress_callback: Callable[[int, int], None] = None, file_name: str = "") -> str:
+    def upload_file(self, data: bytes, file_type: FileType = FileType.FILE,
+                    progress_callback: Callable[[int, int], None] = None,
+                    file_name: str = "") -> str:
         """Sube un archivo a ToDus.
 
         Fix LSP: implementa la lógica directamente en vez de llamar super().upload_file()
@@ -348,8 +428,12 @@ class ToDusClient2(ToDusClient):
         up_url, down_url = self.reserve_upload_url(len(data), file_type, file_name=file_name)
         from .file import _ProgressReader
         upload_data = _ProgressReader(data, progress_callback) if progress_callback else data
-        resp = self.session.put(up_url, data=upload_data,
-                               headers={"Content-Length": str(len(data))}, timeout=60)
+        resp = self.session.put(
+            up_url, data=upload_data,
+            headers={
+                "Content-Type": "application/octet-stream",
+                "Content-Length": str(len(data)),
+            }, timeout=60)
         resp.raise_for_status()
         if progress_callback:
             progress_callback(len(data), len(data))
@@ -389,12 +473,12 @@ class ToDusClient2(ToDusClient):
     # --- Historial (MAM) ---
 
     def get_message_history(self, jid: str = "", since: str = "", before: str = "", limit: int = 50) -> str:
-        """Solicita historial de mensajes (Message Archive Management).
+        """Solicita historial de mensajes (Message Archive Management, XEP-0313).
 
         Args:
             jid: JID del contacto/grupo. Si es vacío, solicita todo el historial.
             since: Fecha/hora inicial (formato XMPP).
-            before: ID del mensaje anterior al cual obtener.
+            before: Fecha/hora final (formato XMPP).
             limit: Máximo de mensajes a retornar.
 
         Returns:
@@ -403,15 +487,10 @@ class ToDusClient2(ToDusClient):
         if not self._token:
             raise AuthenticationError("No autenticado")
         query_id = util.generate_token(12)
-        mam_xml = stanzas.utils.mam_query(query_id, since=since, before=before, limit=limit)
-        if jid:
-            # Inyectar el JID en la query
-            mam_xml = mam_xml.replace(
-                "<query xmlns='todus:mam'>",
-                f"<query xmlns='todus:mam' with='{jid}'>"
-            )
+        mam_xml = stanzas.utils.mam_query(query_id, since=since, before=before,
+                                          limit=limit, with_jid=jid)
         with self._xmpp_session(self._token) as sock:
-            sock.send(mam_xml.encode())
+            sock.sendall(mam_xml.encode())
         return query_id
 
     # --- Rate Limiter ---

@@ -2,7 +2,6 @@ import logging
 import threading
 import time
 import socket
-import hashlib
 from typing import Callable
 from .. import util, stanza, constants
 from ..errors import TokenExpiredError, ConnectionLostError
@@ -19,142 +18,232 @@ class ToDusMessageMixin:
     def send_message(self, token: str, to_jid: str, body: str, reply_to_id: str = "") -> str:
         """Envía mensaje de texto privado. Retorna el msg_id generado."""
         self._rate_limiter.wait()
-        mid = util.generate_token(8)
+        mid = util.generate_msg_id()
         msg = stanza.message(to_jid, body, msg_id=mid, reply_to_id=reply_to_id)
         with self._xmpp_session(token) as sock:
-            sock.send(msg.encode())
+            sock.sendall(msg.encode())
         return mid
 
     def edit_message(self, token: str, to_jid: str, new_body: str, original_msg_id: str, reply_to_id: str = "") -> str:
         """Edita un mensaje privado."""
-        edit_id = util.generate_token(8)
+        self._rate_limiter.wait()
+        edit_id = util.generate_msg_id()
         msg = stanza.edit_message(to_jid, new_body, original_msg_id, edit_id=edit_id, reply_to_id=reply_to_id)
         with self._xmpp_session(token) as sock:
-            sock.send(msg.encode())
+            sock.sendall(msg.encode())
         return edit_id
 
     def send_file_message(self, token: str, to_jid: str, url: str, file_type: FileType,
                           caption: str = "", file_name: str = "", file_size: int = 0,
                           reply_to_id: str = "") -> str:
-        mid = util.generate_token(8)
+        self._rate_limiter.wait()
+        mid = util.generate_msg_id()
         msg = stanza.file_message(to_jid, url, int(file_type), caption, msg_id=mid,
                                   file_name=file_name, file_size=file_size, reply_to_id=reply_to_id)
         with self._xmpp_session(token) as sock:
-            sock.send(msg.encode())
+            sock.sendall(msg.encode())
         return mid
 
     def send_image_message(self, token: str, to_jid: str, url: str, file_name: str,
                            file_size: int, width: int = 0, height: int = 0,
                            thumbnail: str = "", caption: str = "", reply_to_id: str = "") -> str:
         """Envía mensaje privado con imagen adjunta."""
-        mid = util.generate_token(8)
+        self._rate_limiter.wait()
+        mid = util.generate_msg_id()
         msg = stanza.image_message(to_jid, url, file_name, file_size, width, height,
                                    thumbnail, caption, msg_id=mid, reply_to_id=reply_to_id)
         with self._xmpp_session(token) as sock:
-            sock.send(msg.encode())
+            sock.sendall(msg.encode())
         return mid
 
     def send_image_message_simple(self, token: str, to_jid: str, url: str,
                                   file_name: str, file_size: int, msg_id: str = "",
                                   reply_to_id: str = "") -> str:
         """Envía mensaje privado con imagen SIN metadata."""
-        mid = msg_id or util.generate_token(8)
+        self._rate_limiter.wait()
+        mid = msg_id or util.generate_msg_id()
         msg = stanza.image_message_simple(to_jid, url, file_name, file_size,
                                           msg_id=mid, reply_to_id=reply_to_id)
         with self._xmpp_session(token) as sock:
-            sock.send(msg.encode())
+            sock.sendall(msg.encode())
         return mid
 
     def send_button_message(self, token: str, to_jid: str, text: str, buttons: list[dict],
                             reply_to_id: str = "") -> str:
         """Envía mensaje con botones interactivos."""
-        mid = util.generate_token(8)
+        self._rate_limiter.wait()
+        mid = util.generate_msg_id()
         msg = stanza.button_message(to_jid, text, buttons, msg_id=mid, reply_to_id=reply_to_id)
         with self._xmpp_session(token) as sock:
-            sock.send(msg.encode())
+            sock.sendall(msg.encode())
         return mid
 
     def send_contact_message(self, token: str, to_jid: str, contact_id: str,
                              contact_name: str, contact_phone: str, reply_to_id: str = "") -> str:
-        mid = util.generate_token(8)
+        self._rate_limiter.wait()
+        mid = util.generate_msg_id()
         msg = stanza.contact_message(to_jid, contact_id, contact_name, contact_phone,
                                      msg_id=mid, reply_to_id=reply_to_id)
         with self._xmpp_session(token) as sock:
-            sock.send(msg.encode())
+            sock.sendall(msg.encode())
         return mid
 
     def send_sticker_message(self, token: str, to_jid: str, sticker_id: str,
                              sticker_name: str, sticker_pack: str, sticker_hash: str,
                              reply_to_id: str = "") -> str:
-        mid = util.generate_token(8)
+        self._rate_limiter.wait()
+        mid = util.generate_msg_id()
         msg = stanza.sticker_message(to_jid, sticker_id, sticker_name, sticker_pack,
                                      sticker_hash, msg_id=mid, reply_to_id=reply_to_id)
         with self._xmpp_session(token) as sock:
-            sock.send(msg.encode())
+            sock.sendall(msg.encode())
         return mid
 
     def send_video_message(self, token: str, to_jid: str, url: str, video_id: str,
                            file_name: str, file_size: int, duration: int,
                            width: int, height: int, thumbnail: str,
                            info_text: str = "", reply_to_id: str = "") -> str:
-        mid = hashlib.md5(util.generate_token(16).encode()).hexdigest()
+        self._rate_limiter.wait()
+        mid = util.generate_msg_id()
         msg = stanza.video_message(to_jid, url, video_id, file_name, file_size,
                                    duration, width, height, thumbnail,
                                    msg_id=mid, info_text=info_text, reply_to_id=reply_to_id)
         with self._xmpp_session(token) as sock:
-            sock.send(msg.encode())
+            sock.sendall(msg.encode())
+        return mid
+
+    def send_voice_message(self, token: str, to_jid: str, url: str, file_name: str,
+                           file_size: int, duration: int, wave_sample: str = "",
+                           caption: str = "", reply_to_id: str = "") -> str:
+        """Envía nota de voz (extensión voice:n de la APK).
+
+        ``wave_sample`` es la forma de onda para dibujar la burbuja
+        (amplitudes separadas por coma).
+        """
+        self._rate_limiter.wait()
+        mid = util.generate_msg_id()
+        msg = stanza.voice_message(to_jid, url, file_name, file_size, duration,
+                                   wave_sample, msg_id=mid, caption=caption,
+                                   reply_to_id=reply_to_id)
+        with self._xmpp_session(token) as sock:
+            sock.sendall(msg.encode())
+        return mid
+
+    def send_gif_message(self, token: str, to_jid: str, url: str, file_name: str,
+                         file_size: int, width: int = 0, height: int = 0,
+                         thumbnail: str = "", caption: str = "", reply_to_id: str = "") -> str:
+        """Envía GIF (extensión gif:n de la APK)."""
+        self._rate_limiter.wait()
+        mid = util.generate_msg_id()
+        msg = stanza.gif_message(to_jid, url, file_name, file_size, width, height,
+                                 thumbnail, caption, msg_id=mid, reply_to_id=reply_to_id)
+        with self._xmpp_session(token) as sock:
+            sock.sendall(msg.encode())
+        return mid
+
+    def send_stream_video_message(self, token: str, to_jid: str, guid: str,
+                                  stream_url: str, duration: int = 0,
+                                  extra_codec: str = "") -> str:
+        """Envía video en stream (extensión streamvideo:n de la APK)."""
+        self._rate_limiter.wait()
+        mid = util.generate_msg_id()
+        msg = stanza.stream_video_message(to_jid, guid, stream_url, duration,
+                                          extra_codec, msg_id=mid)
+        with self._xmpp_session(token) as sock:
+            sock.sendall(msg.encode())
+        return mid
+
+    def send_reaction(self, token: str, to_jid: str, reacted_msg_id: str,
+                      reaction_code: str) -> str:
+        """Envía una reacción a un mensaje (extensión reaction:n de la APK)."""
+        self._rate_limiter.wait()
+        mid = util.generate_msg_id()
+        msg = stanza.reaction_message(to_jid, reacted_msg_id, reaction_code, msg_id=mid)
+        with self._xmpp_session(token) as sock:
+            sock.sendall(msg.encode())
+        return mid
+
+    def forward_message(self, token: str, to_jid: str, original_msg_id: str,
+                        original_owner: str = "", body: str = "") -> str:
+        """Reenvía un mensaje (extensión resend:n de la APK)."""
+        self._rate_limiter.wait()
+        mid = util.generate_msg_id()
+        msg = stanza.forward_message(to_jid, original_msg_id, original_owner,
+                                     msg_id=mid, body=body)
+        with self._xmpp_session(token) as sock:
+            sock.sendall(msg.encode())
+        return mid
+
+    def send_call_signal(self, token: str, to_jid: str, call_state: str,
+                         call_id: str) -> str:
+        """Envía señalización de llamada (extensión tcall:n de la APK)."""
+        mid = util.generate_msg_id()
+        msg = stanza.tcall_message(to_jid, call_state, call_id, msg_id=mid)
+        with self._xmpp_session(token) as sock:
+            sock.sendall(msg.encode())
         return mid
 
     def send_location_message(self, token: str, to_jid: str, lat: float, lon: float,
                               zoom: float = 11.0, text: str = "", reply_to_id: str = "") -> str:
         """Envía un mensaje con ubicación adjunta."""
-        mid = util.generate_token(8)
+        self._rate_limiter.wait()
+        mid = util.generate_msg_id()
         msg = stanza.location_message(to_jid, lat, lon, zoom, text, msg_id=mid, reply_to_id=reply_to_id)
         with self._xmpp_session(token) as sock:
-            sock.send(msg.encode())
+            sock.sendall(msg.encode())
         return mid
 
     def send_event_message(self, token: str, to_jid: str, title: str, start: int,
                            end: int, all_day: bool, ics_data: str,
                            event_id: str = "", reply_to_id: str = "") -> str:
         """Envía un mensaje con evento/calendario adjunto."""
-        mid = util.generate_token(8)
+        self._rate_limiter.wait()
+        mid = util.generate_msg_id()
         msg = stanza.event_message(to_jid, event_id, title, start, end, all_day,
                                    ics_data, msg_id=mid, reply_to_id=reply_to_id)
         with self._xmpp_session(token) as sock:
-            sock.send(msg.encode())
+            sock.sendall(msg.encode())
         return mid
 
     def send_chat_state(self, token: str, to_jid: str, state: str) -> None:
         st = stanza.chat_state(to_jid, state)
         with self._xmpp_session(token) as sock:
-            sock.send(st.encode())
+            sock.sendall(st.encode())
 
     def delete_message(self, token: str, to_jid: str, message_id: str,
                        msg_type: str = "c", body: str = "", media_xml: str = "",
                        reply_to_id: str = "") -> str:
         """Elimina un mensaje propio."""
+        self._rate_limiter.wait()
         msg = stanza.delete_message(to_jid, message_id, msg_id=message_id, msg_type=msg_type,
                                     body=body, media_xml=media_xml, reply_to_id=reply_to_id)
         with self._xmpp_session(token) as sock:
-            sock.send(msg.encode())
+            sock.sendall(msg.encode())
         return message_id
 
     def send_read_receipt(self, token: str, to_jid: str, msg_id: str, msg_type: str = "c") -> str:
-        """Envía una confirmación de lectura (read receipt)."""
-        rid = util.generate_token(8)
+        """Envía confirmación de lectura (displayed, ``dd``)."""
+        rid = util.generate_msg_id()
         msg = stanza.read_receipt(to_jid, msg_id, receipt_id=rid, msg_type=msg_type)
         with self._xmpp_session(token) as sock:
-            sock.send(msg.encode())
+            sock.sendall(msg.encode())
+        return rid
+
+    def send_delivery_receipt(self, token: str, to_jid: str, msg_id: str, msg_type: str = "c") -> str:
+        """Envía confirmación de entrega (received, ``rd``)."""
+        rid = util.generate_msg_id()
+        msg = stanza.receipt(to_jid, msg_id, receipt_id=rid, msg_type=msg_type)
+        with self._xmpp_session(token) as sock:
+            sock.sendall(msg.encode())
         return rid
 
     # --- Recepción de mensajes ---
 
     def listen_messages(self, token: str, callback: Callable[[dict], None],
-                          stop_event: threading.Event = None, max_retries: int = 0,
-                          base_backoff: float = 15.0, max_backoff: float = 300.0) -> None:
+                        stop_event: threading.Event = None, max_retries: int = 0,
+                        base_backoff: float = 15.0, max_backoff: float = 300.0) -> None:
         """Escucha mensajes con soporte para detener gracefulfully y backoff exponencial.
-        
+
         Args:
             token: Token de autenticación.
             callback: Función llamada por cada mensaje recibido.
@@ -163,6 +252,8 @@ class ToDusMessageMixin:
             base_backoff: Tiempo base de espera entre reintentos (segundos).
             max_backoff: Tiempo máximo de espera entre reintentos (segundos).
         """
+        import random
+
         retry_count = 0
         while True:
             if stop_event and stop_event.is_set():
@@ -180,10 +271,9 @@ class ToDusMessageMixin:
                     raise ConnectionLostError(f"Max reintentos ({max_retries}) alcanzados") from e
                 backoff = min(base_backoff * (2 ** (retry_count - 1)), max_backoff)
                 # Añadir jitter ±20%
-                import random
                 backoff *= random.uniform(0.8, 1.2)
                 logger.warning("Reconectando en %.1fs (intento %d)%s", backoff, retry_count,
-                              f" / {max_retries}" if max_retries else "")
+                               f" / {max_retries}" if max_retries else "")
                 if stop_event:
                     stop_event.wait(backoff)
                 else:
@@ -231,19 +321,25 @@ class ToDusMessageMixin:
 
     def _keepalive_worker(self, sock, stop: threading.Event, ping_id: str) -> None:
         while not stop.is_set():
-            time.sleep(constants.KEEPALIVE_INTERVAL)
+            stop.wait(constants.KEEPALIVE_INTERVAL)
             if stop.is_set():
                 break
             try:
-                sock.send(stanza.ping(ping_id).encode())
+                sock.sendall(stanza.ping(ping_id).encode())
             except OSError:
                 break
 
-    def handle_parsed_stanza(self, msg: dict, *, sock=None, callback: Callable[[dict], None] | None = None) -> list[str]:
+    def handle_parsed_stanza(
+        self,
+        msg: dict,
+        *,
+        sock=None,
+        callback: Callable[[dict], None] | None = None,
+    ) -> list[str]:
         """Maneja una stanza ya parseada.
 
         - Envía receipts si corresponde (requiere `sock`).
-        - Despacha eventos al `EventBus` para tipos: message, presence, iq, tdack,
+        - Despacha eventos al `EventBus` para tipos: message, presence, iq, ack,
           receipt, deleted, chat_state.
         - Llama al `callback` si está provisto.
 
@@ -271,18 +367,23 @@ class ToDusMessageMixin:
             or msg.get("contact_id")
             or msg.get("sticker_id")
             or msg.get("video_url")
+            or msg.get("voice_url")
+            or msg.get("gif_url")
+            or msg.get("stream_url")
             or msg.get("buttons")
             or msg.get("location_id")
+            or msg.get("reaction_code")
         )
 
-        # enviar receipt para mensajes con contenido si no es borrado
+        # enviar receipt de entrega (received/rd) para mensajes con contenido
+        # si no es borrado, como hace la APK al recibir
         if is_content and not msg.get("deleted"):
             msg_id = msg.get("id", "")
             msg_from = msg.get("from", "")
             if msg_id and msg_from and sock is not None:
                 try:
                     receipt = stanza.receipt(msg_from, msg_id)
-                    sock.send(receipt.encode())
+                    sock.sendall(receipt.encode())
                 except Exception:
                     logger.exception("Error enviando receipt")
 
@@ -313,13 +414,13 @@ class ToDusMessageMixin:
                     except Exception:
                         logger.exception("Error despachando 'iq'")
 
-                # tdack (acknowledgements)
-                if msg.get("type") == "tdack" or "message_id" in msg and msg.get("type") == "tdack":
+                # ack (APK) y tdack (legado)
+                if msg.get("type") in ("ack", "tdack") or msg.get("ack"):
                     try:
-                        self.events.dispatch("tdack", msg)
-                        dispatched.append("tdack")
+                        self.events.dispatch("ack", msg)
+                        dispatched.append("ack")
                     except Exception:
-                        logger.exception("Error despachando 'tdack'")
+                        logger.exception("Error despachando 'ack'")
 
                 # receipt (deliver/read)
                 if msg.get("receipt"):

@@ -38,7 +38,14 @@ class EventBus:
         self._lock = threading.RLock()
         self._handlers: Dict[str, List[HandlerEntry]] = {}
 
-    def subscribe(self, event_type: str, handler: Callable[[Dict[str, Any]], Any], *, filters: Optional[Callable[[Dict[str, Any]], bool]] = None, priority: int = 0) -> None:
+    def subscribe(
+        self,
+        event_type: str,
+        handler: Callable[[Dict[str, Any]], Any],
+        *,
+        filters: Optional[Callable[[Dict[str, Any]], bool]] = None,
+        priority: int = 0,
+    ) -> None:
         """Registra un handler para `event_type`.
 
         - `filters` es una función que recibe `event` y devuelve bool.
@@ -49,7 +56,12 @@ class EventBus:
             self._handlers.setdefault(event_type, []).append((priority, handler, filt))
             # mantener ordenados por prioridad descendente
             self._handlers[event_type].sort(key=lambda x: x[0], reverse=True)
-        logger.debug("Handler suscrito: %s priority=%s filters=%s", handler, priority, getattr(filters, '__name__', repr(filters)))
+        logger.debug(
+            "Handler suscrito: %s priority=%s filters=%s",
+            handler,
+            priority,
+            getattr(filters, '__name__', repr(filters)),
+        )
 
     def unsubscribe(self, event_type: str, handler: Callable[[Dict[str, Any]], Any]) -> bool:
         """Remueve un handler y devuelve True si se eliminó."""

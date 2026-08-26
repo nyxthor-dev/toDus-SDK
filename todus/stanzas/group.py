@@ -13,7 +13,7 @@ def group_message(to: str, body: str, msg_id: str = "", reply_to_id: str = "") -
     """Mensaje de texto para grupo MUC Light."""
     mid = msg_id or _generate_msg_id()
     body_esc = util.escape_xml(body)
-    reply_xml = f"<reply xmlns='reply:n' mi='{reply_to_id}'/>" if reply_to_id else ""
+    reply_xml = f"<resend xmlns='resend:n' mi='{reply_to_id}'/>" if reply_to_id else ""
     return (
         f"<m to='{to}' t='gc' i='{mid}' xmlns='jc'>"
         f"<k xmlns='x8'/>"
@@ -31,7 +31,7 @@ def group_file_message(to: str, url: str, file_name: str, file_size: int,
     name_esc = util.escape_xml(file_name)
     url_esc = util.escape_xml(url)
     body_tag = f"<b>{util.escape_xml(caption)}</b>" if caption else "<b/>"
-    reply_xml = f"<reply xmlns='reply:n' mi='{reply_to_id}'/>" if reply_to_id else ""
+    reply_xml = f"<resend xmlns='resend:n' mi='{reply_to_id}'/>" if reply_to_id else ""
 
     return (
         f"<m to='{to}' t='gc' i='{mid}' xmlns='jc'>"
@@ -54,7 +54,7 @@ def group_image_message(to: str, url: str, file_name: str, file_size: int,
     url_esc = util.escape_xml(url)
     tnail = thumbnail if thumbnail else "U6688O?Hr=xu^-w2sp-;,^VZnm-;_3xHMyt5"
     body_tag = f"<b>{util.escape_xml(caption)}</b>" if caption else "<b/>"
-    reply_xml = f"<reply xmlns='reply:n' mi='{reply_to_id}'/>" if reply_to_id else ""
+    reply_xml = f"<resend xmlns='resend:n' mi='{reply_to_id}'/>" if reply_to_id else ""
 
     return (
         f"<m to='{to}' t='gc' i='{mid}' xmlns='jc'>"
@@ -76,7 +76,7 @@ def group_video_message(to: str, url: str, video_id: str, file_name: str,
     name_esc = util.escape_xml(file_name)
     url_esc = util.escape_xml(url)
     body_tag = f"<b>{util.escape_xml(caption)}</b>" if caption else "<b/>"
-    reply_xml = f"<reply xmlns='reply:n' mi='{reply_to_id}'/>" if reply_to_id else ""
+    reply_xml = f"<resend xmlns='resend:n' mi='{reply_to_id}'/>" if reply_to_id else ""
 
     return (
         f"<m to='{to}' t='gc' i='{mid}' xmlns='jc'>"
@@ -97,7 +97,7 @@ def group_sticker_message(to: str, sticker_id: str, sticker_name: str,
     mid = msg_id or _generate_msg_id()
     name_esc = util.escape_xml(sticker_name)
     pack_esc = util.escape_xml(sticker_pack)
-    reply_xml = f"<reply xmlns='reply:n' mi='{reply_to_id}'/>" if reply_to_id else ""
+    reply_xml = f"<resend xmlns='resend:n' mi='{reply_to_id}'/>" if reply_to_id else ""
 
     return (
         f"<m to='{to}' t='gc' i='{mid}' xmlns='jc'>"
@@ -115,7 +115,7 @@ def group_contact_message(to: str, contact_id: str, contact_name: str,
     """Contacto para grupo MUC Light."""
     mid = msg_id or _generate_msg_id()
     name_esc = util.escape_xml(contact_name)
-    reply_xml = f"<reply xmlns='reply:n' mi='{reply_to_id}'/>" if reply_to_id else ""
+    reply_xml = f"<resend xmlns='resend:n' mi='{reply_to_id}'/>" if reply_to_id else ""
 
     return (
         f"<m to='{to}' t='gc' i='{mid}' xmlns='jc'>"
@@ -133,7 +133,7 @@ def group_edit_message(to: str, new_body: str, original_msg_id: str,
     """Editar mensaje en grupo."""
     eid = edit_id or _generate_msg_id()
     body_esc = util.escape_xml(new_body)
-    reply_xml = f"<reply xmlns='reply:n' mi='{reply_to_id}'/>" if reply_to_id else ""
+    reply_xml = f"<resend xmlns='resend:n' mi='{reply_to_id}'/>" if reply_to_id else ""
 
     return (
         f"<m to='{to}' t='gc' i='{original_msg_id}' xmlns='jc'>"
@@ -151,7 +151,7 @@ def group_delete_message(to: str, message_id: str, msg_id: str = "",
     mid = msg_id or message_id
     did = _generate_msg_id()
     body_xml = f"<b>{util.escape_xml(body)}</b>" if body or not media_xml else "<b/>"
-    reply_xml = f"<reply xmlns='reply:n' mi='{reply_to_id}'/>" if reply_to_id else ""
+    reply_xml = f"<resend xmlns='resend:n' mi='{reply_to_id}'/>" if reply_to_id else ""
     return (
         f"<m to='{to}' t='gc' i='{mid}' xmlns='jc'>"
         f"{media_xml}"
@@ -169,7 +169,7 @@ def group_location_message(to: str, lat: float, lon: float, zoom: float = 11.0,
     mid = msg_id or _generate_msg_id()
     lid = _generate_msg_id()
     text_esc = util.escape_xml(text)
-    reply_xml = f"<reply xmlns='reply:n' mi='{reply_to_id}'/>" if reply_to_id else ""
+    reply_xml = f"<resend xmlns='resend:n' mi='{reply_to_id}'/>" if reply_to_id else ""
     return (
         f"<m to='{to}' t='gc' i='{mid}' xmlns='jc'>"
         f"<location xmlns='location:n' i='{lid}' mi='{mid}' lat='{lat}' lon='{lon}' z='{zoom}' t='{text_esc}'/>"
@@ -188,7 +188,7 @@ def group_event_message(to: str, event_id: str, title: str, start: int, end: int
     ad_str = "true" if all_day else "false"
     title_esc = util.escape_xml(title)
     ics_esc = util.escape_xml(ics_data)
-    reply_xml = f"<reply xmlns='reply:n' mi='{reply_to_id}'/>" if reply_to_id else ""
+    reply_xml = f"<resend xmlns='resend:n' mi='{reply_to_id}'/>" if reply_to_id else ""
     return (
         f"<m to='{to}' t='gc' i='{mid}' xmlns='jc'>"
         f"<event xmlns='event:n' i='{eid}' mi='{mid}' ti='{title_esc}' s='{start}' e='{end}' ad='{ad_str}'>"
@@ -290,19 +290,95 @@ def group_get_members_iq(to: str, msg_id: str = "") -> str:
 
 
 def group_set_members_iq(to: str, affiliations: dict[str, str], msg_id: str = "") -> str:
-    """
-    Stanza IQ para modificar roles, añadir o expulsar miembros (x11).
+    """Stanza IQ para modificar roles, añadir o expulsar miembros.
+
+    Las mutaciones de membresía en la APK usan ``td:g:add_occupant`` con el
+    atributo ``new_occupants`` (lista de JIDs separados por coma), no el
+    namespace x11 (que es solo consulta/get).
+
     affiliations: dict de {numero_telefono: rol}
                   ej: {"5350000000": "participant", "5351111111": "none"}
     """
     mid = msg_id or _generate_msg_id()
-    users_xml = ""
-    for phone, role in affiliations.items():
-        user_jid = f"{phone}@im.todus.cu"
-        users_xml += f"<user affiliation='{role}'>{user_jid}</user>"
-        
+    occupants = ",".join(f"{phone}@im.todus.cu" for phone in affiliations)
     return (
         f"<iq to='{to}' type='set' id='{mid}'>"
-        f"<query xmlns='x11'>{users_xml}</query>"
+        f"<query xmlns='td:g:add_occupant' new_occupants='{occupants}'/>"
+        f"</iq>"
+    )
+
+
+def group_create_iq(room_name: str, occupants: list[str] = None, msg_id: str = "",
+                    to: str = "muclight.im.todus.cu") -> str:
+    """Stanza IQ para crear un grupo MUC Light (namespace ``x16``).
+
+    Estructura basada en XEP-0370 adaptada al fork Smack de la APK
+    (CreateGroupIQ.java). ``occupants`` es una lista de teléfonos.
+    """
+    mid = msg_id or _generate_msg_id()
+    occupants_xml = ""
+    if occupants:
+        users = "".join(f"<user>{phone}@im.todus.cu</user>" for phone in occupants)
+        occupants_xml = f"<occupants>{users}</occupants>"
+    return (
+        f"<iq to='{to}' type='set' id='{mid}'>"
+        f"<query xmlns='x16'>"
+        f"<configuration><roomname>{util.escape_xml(room_name)}</roomname></configuration>"
+        f"{occupants_xml}"
+        f"</query>"
+        f"</iq>"
+    )
+
+
+def group_my_groups_iq(index: int = 0, limit: int = 50, msg_id: str = "",
+                       to: str = "muclight.im.todus.cu") -> str:
+    """Stanza IQ para listar mis grupos (paginado, ``todus:muclight:my_mucs:2``)."""
+    mid = msg_id or _generate_msg_id()
+    return (
+        f"<iq to='{to}' type='get' id='{mid}'>"
+        f"<query xmlns='todus:muclight:my_mucs:2' index='{index}' limit='{limit}'/>"
+        f"</iq>"
+    )
+
+
+def group_promote_admin_iq(to: str, phones: list[str], msg_id: str = "") -> str:
+    """Stanza IQ para promover miembros a admin (``td:g:promote``)."""
+    mid = msg_id or _generate_msg_id()
+    occupants = ",".join(f"{phone}@im.todus.cu" for phone in phones)
+    return (
+        f"<iq to='{to}' type='set' id='{mid}'>"
+        f"<query xmlns='td:g:promote' new_occupants='{occupants}'/>"
+        f"</iq>"
+    )
+
+
+def group_demote_admin_iq(to: str, phones: list[str], msg_id: str = "") -> str:
+    """Stanza IQ para degradar admins a participantes (``td:g:demote``)."""
+    mid = msg_id or _generate_msg_id()
+    occupants = ",".join(f"{phone}@im.todus.cu" for phone in phones)
+    return (
+        f"<iq to='{to}' type='set' id='{mid}'>"
+        f"<query xmlns='td:g:demote' new_occupants='{occupants}'/>"
+        f"</iq>"
+    )
+
+
+def group_info_by_link_iq(link: str, msg_id: str = "") -> str:
+    """Stanza IQ para obtener info de un grupo por su enlace (``td:g:info_by_link``)."""
+    mid = msg_id or _generate_msg_id()
+    return (
+        f"<iq type='get' id='{mid}'>"
+        f"<query xmlns='td:g:info_by_link' link='{util.escape_xml(link)}'/>"
+        f"</iq>"
+    )
+
+
+def group_info_by_id_iq(group_id: str, msg_id: str = "") -> str:
+    """Stanza IQ para obtener info de un grupo por su id (``td:g:info_by_id``)."""
+    mid = msg_id or _generate_msg_id()
+    group_jid = f"{group_id}@muclight.im.todus.cu"
+    return (
+        f"<iq type='get' id='{mid}'>"
+        f"<query xmlns='td:g:info_by_id' room='{group_jid}'/>"
         f"</iq>"
     )

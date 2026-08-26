@@ -1,5 +1,5 @@
 """ToDus Python Library - Cliente XMPP/HTTP para ToDus."""
- 
+
 from .client import ToDusClient, ToDusClient2
 from .client_with_queue import ToDusClientWithQueue
 from .group import GroupClient, GroupRole, GroupEvent
@@ -16,14 +16,22 @@ from .errors import (
     StanzaError,
     GroupError,
 )
-from .util import normalize_phone, build_jid, generate_token, jwt_decode_payload, timestamp_ms, format_size
-from .parser import IncrementalParser, parse_tdack
+from .util import (
+    normalize_phone,
+    build_jid,
+    generate_token,
+    generate_msg_id,
+    jwt_decode_payload,
+    timestamp_ms,
+    format_size,
+)
+from .parser import IncrementalParser, parse_tdack, parse_ack
 from .cache import MessageStore, Message, MessageStatus, MessageQueue
 from .events import EventBus
 from .ratelimit import RateLimiter
- 
-__version__ = "1.7.0"  # LSP fix, send_stanza+jid, dedup, release workflow
- 
+
+__version__ = "1.8.0"  # Alineación con APK v2.1.2: puerto 1756, receipts, voice/gif/reaction, sendall
+
 __all__ = [
     "ToDusClient",
     "ToDusClient2",
@@ -50,11 +58,13 @@ __all__ = [
     "normalize_phone",
     "build_jid",
     "generate_token",
+    "generate_msg_id",
     "jwt_decode_payload",
     "timestamp_ms",
     "format_size",
     "IncrementalParser",
     "parse_tdack",
+    "parse_ack",
     "MessageStore",
     "Message",
     "MessageStatus",

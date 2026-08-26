@@ -19,6 +19,9 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev]" pytest-json-report
 
+      - name: Lint (flake8)
+        run: flake8 todus/ --max-line-length=120 --count
+
       - name: Run tests
         run: pytest tests/ -v --json-report --json-report-file=report.json --tb=short 2>&1 | tee test_output.txt
 
@@ -79,15 +82,6 @@ jobs:
           with open('.github/test-report.md', 'w') as f:
               f.write('\n'.join(lines))
           "
-
-      - name: Commit test report
-        if: always()
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email 'github-actions[bot]@users.noreply.github.com'
-          git add .github/test-report.md
-          git commit -m 'test report' || true
-          git push || true
 
       - name: Upload test report artifact
         if: always()

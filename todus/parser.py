@@ -48,6 +48,29 @@ def parse_todus_message(stanza: str) -> dict:
         "video_width": 0,
         "video_height": 0,
         "video_thumbnail": "",
+        "voice_url": "",
+        "voice_name": "",
+        "voice_size": 0,
+        "voice_duration": 0,
+        "voice_wave": "",
+        "gif_url": "",
+        "gif_name": "",
+        "gif_size": 0,
+        "gif_width": 0,
+        "gif_height": 0,
+        "gif_thumbnail": "",
+        "stream_guid": "",
+        "stream_url": "",
+        "stream_duration": 0,
+        "stream_codec": "",
+        "reaction_id": "",
+        "reaction_msg_id": "",
+        "reaction_code": "",
+        "mentions": [],
+        "forward_id": "",
+        "forward_owner": "",
+        "call_state": "",
+        "call_id": "",
         "image_width": 0,
         "image_height": 0,
         "image_thumbnail": "",
@@ -75,7 +98,7 @@ def parse_todus_message(stanza: str) -> dict:
         "is_group": False,
         "group_id": "",
         "sender_phone": "",
-        "reply_to": "",      # <-- NUEVO: ID del mensaje al que se responde
+        "reply_to": "",      # ID del mensaje al que se responde (via resend)
     }
 
     # Detectar si es mensaje de grupo
@@ -99,7 +122,10 @@ def parse_todus_message(stanza: str) -> dict:
             result["has_format"] = True
 
     # Botones interactivos
-    button_pattern = r"<button\s+[^>]*?btn_t='([^']*)'\s+btn_cmd='([^']*)'\s+btn_msg_c='([^']*)'\s+btn_size='([^']*)'[^>]*/?>"
+    button_pattern = (
+        r"<button\s+[^>]*?btn_t='([^']*)'\s+btn_cmd='([^']*)'"
+        r"\s+btn_msg_c='([^']*)'[^>]*?btn_size='([^']*)'[^>]*/?>"
+    )
     for btn_match in re.finditer(button_pattern, stanza):
         result["buttons"].append({
             "text": util.unescape_xml(btn_match.group(1)),
@@ -107,6 +133,11 @@ def parse_todus_message(stanza: str) -> dict:
             "data": util.unescape_xml(btn_match.group(3)),
             "size": btn_match.group(4)
         })
+
+    # Descripción de botones (btn_d, APK oficial)
+    btn_d_match = re.search(r"btn_d='([^']*)'", stanza)
+    if btn_d_match and result["buttons"]:
+        result["buttons"][-1]["description"] = util.unescape_xml(btn_d_match.group(1))
 
     # URL de archivo (formato antiguo <u>)
     match = re.search(r"<u>(.*?)</u>", stanza, re.DOTALL)
@@ -196,6 +227,98 @@ def parse_todus_message(stanza: str) -> dict:
         result["video_thumbnail"] = _attr(video_tag, "tnail")
         result["file_hash"] = _attr(video_tag, "h")
 
+    # Nota de voz (voice:n) — attrs: i, mi, url, s, h, d, n, ws
+    voice_match = re.search(r"<voice\b[^>]*>", stanza)
+    if voice_match:
+        voice_tag = voice_match.group(0)
+        result["voice_url"] = _attr(voice_tag, "url")
+        result["voice_name"] = util.unescape_xml(_attr(voice_tag, "n"))
+        result["message_file_id"] = _attr(voice_tag, "mi")
+        try:
+            result["voice_size"] = int(_attr(voice_tag, "s"))
+        except ValueError:
+            result["voice_size"] = 0
+        try:
+            result["voice_duration"] = int(_attr(voice_tag, "d"))
+        except ValueError:
+            result["voice_duration"] = 0
+        result["voice_wave"] = _attr(voice_tag, "ws")
+        result["url"] = result["url"] or result["voice_url"]
+
+    # GIF (gif:n) — attrs: i, mi, url, n, s, h, w, he, tnail
+    gif_match = re.search(r"<gif\b[^>]*>", stanza)
+    if gif_match:
+        gif_tag = gif_match.group(0)
+        result["gif_url"] = _attr(gif_tag, "url")
+        result["gif_name"] = util.unescape_xml(_attr(gif_tag, "n"))
+        result["message_file_id"] = _attr(gif_tag, "mi")
+        try:
+            result["gif_size"] = int(_attr(gif_tag, "s"))
+        except ValueError:
+            result["gif_size"] = 0
+        try:
+            result["gif_width"] = int(_attr(gif_tag, "w"))
+        except ValueError:
+            result["gif_width"] = 0
+        try:
+            result["gif_height"] = int(_attr(gif_tag, "he"))
+        except ValueError:
+            result["gif_height"] = 0
+        result["gif_thumbnail"] = _attr(gif_tag, "tnail")
+        result["url"] = result["url"] or result["gif_url"]
+
+    # Video en stream (streamvideo:n) — attrs: gu, su, du, ec
+    stream_match = re.search(r"<streamvideo\b[^>]*>", stanza)
+    if stream_match:
+        stream_tag = stream_match.group(0)
+        result["stream_guid"] = _attr(stream_tag, "gu")
+        result["stream_url"] = _attr(stream_tag, "su")
+        try:
+            result["stream_duration"] = int(_attr(stream_tag, "du"))
+        except ValueError:
+            result["stream_duration"] = 0
+        result["stream_codec"] = _attr(stream_tag, "ec")
+
+    # Reacción (reaction:n) — attrs: i, mi, mir, rc, ca
+    reaction_match = re.search(r"<reaction\b[^>]*>", stanza)
+    if reaction_match:
+        reaction_tag = reaction_match.group(0)
+        result["reaction_id"] = _attr(reaction_tag, "i")
+        result["reaction_msg_id"] = _attr(reaction_tag, "mi") or _attr(reaction_tag, "mir")
+        result["reaction_code"] = _attr(reaction_tag, "rc")
+
+    # Menciones (mention:n) — attrs: o, l, ui (puede haber varias)
+    for mention_match in re.finditer(r"<mention\b[^>]*>", stanza):
+        mention_tag = mention_match.group(0)
+        try:
+            offset = int(_attr(mention_tag, "o"))
+        except ValueError:
+            offset = 0
+        try:
+            length = int(_attr(mention_tag, "l"))
+        except ValueError:
+            length = 0
+        result["mentions"].append({
+            "offset": offset,
+            "length": length,
+            "user_id": _attr(mention_tag, "ui"),
+        })
+
+    # Reenvío / respuesta (resend:n) — attrs: i, mi, uowner
+    resend_match = re.search(r"<resend\b[^>]*>", stanza)
+    if resend_match:
+        resend_tag = resend_match.group(0)
+        result["forward_id"] = _attr(resend_tag, "mi")
+        result["forward_owner"] = _attr(resend_tag, "uowner")
+        result["reply_to"] = result["forward_id"]
+
+    # Señalización de llamada (tcall:n) — attrs: i, mi, st, cid
+    tcall_match = re.search(r"<tcall\b[^>]*>", stanza)
+    if tcall_match:
+        tcall_tag = tcall_match.group(0)
+        result["call_state"] = _attr(tcall_tag, "st")
+        result["call_id"] = _attr(tcall_tag, "cid")
+
     # Offline timestamp
     match = re.search(r"<todus_offline\s+ts='([^']+)'", stanza)
     if not match:
@@ -251,35 +374,43 @@ def parse_todus_message(stanza: str) -> dict:
         except ValueError:
             result["event_end"] = 0
         result["event_all_day"] = _attr(event_tag, "ad").lower() == "true"
-        
+
         ics_match = re.search(r"<ics>(.*?)</ics>", stanza, re.DOTALL)
         if ics_match:
             result["event_ics"] = ics_match.group(1).strip()
 
-    # Estado de chat (csp/csc)
-    if "<csp xmlns='uc1'/>" in stanza:
+    # Estado de chat (XEP-0085 ofuscado según la APK:
+    # csc=composing, csp=paused, csa=active, csi=inactive, csg=gone)
+    if "<csc xmlns='uc1'/>" in stanza:
         result["chat_state"] = "composing"
-    elif "<csc xmlns='uc1'/>" in stanza:
+    elif "<csp xmlns='uc1'/>" in stanza:
         result["chat_state"] = "paused"
+    elif "<csa xmlns='uc1'/>" in stanza:
+        result["chat_state"] = "active"
+    elif "<csi xmlns='uc1'/>" in stanza:
+        result["chat_state"] = "inactive"
+    elif "<csg xmlns='uc1'/>" in stanza:
+        result["chat_state"] = "gone"
 
-    # Recibos de entrega (dd) o lectura (rd)
-    receipt_match = re.search(r"<dd\b[^>]*>", stanza)
+    # Recibos según la APK oficial (ChatMarkersElements.java):
+    # rd = Received (entregado), dd = Displayed (leído)
+    receipt_match = re.search(r"<rd\b[^>]*>", stanza)
     if receipt_match:
         receipt_tag = receipt_match.group(0)
         result["receipt"] = _attr(receipt_tag, "i")
         result["receipt_type"] = "delivered"
     else:
-        read_match = re.search(r"<rd\b[^>]*>", stanza)
+        read_match = re.search(r"<dd\b[^>]*>", stanza)
         if read_match:
             read_tag = read_match.group(0)
             result["receipt"] = _attr(read_tag, "i")
             result["receipt_type"] = "read"
 
-    # REPLY TO (nuevo)
-    reply_match = re.search(r"<reply\b[^>]*>", stanza)
-    if reply_match:
-        reply_tag = reply_match.group(0)
-        result["reply_to"] = _attr(reply_tag, "mi")
+    # ACK (ak, AcknowledgedExtension de la APK; tdack se mantiene
+    # por compatibilidad con versiones anteriores del SDK)
+    ack_match = re.search(r"<ak\b[^>]*>", stanza)
+    if ack_match:
+        result["ack"] = _attr(ack_match.group(0), "i")
 
     return result
 
@@ -326,7 +457,7 @@ def parse_iq(stanza: str) -> dict:
         match = re.search(r"<error[^>]*>(.*?)</error>", stanza, re.DOTALL)
         if match:
             result["error"] = match.group(1)
-            
+
     # Extraer query interno si existe (útil para canales)
     query_match = re.search(r"<query[^>]*>(.*?)</query>", stanza, re.DOTALL)
     if query_match:
@@ -350,10 +481,19 @@ def parse_iq(stanza: str) -> dict:
 
 
 def parse_tdack(stanza: str) -> dict:
-    """Parsea stanza <tdack> de ToDus (acknowledgment)."""
+    """Parsea stanza <tdack> (legado, no existe en la APK)."""
     return {
         "type": "tdack",
         "message_id": _attr(stanza, "mi"),
+        "raw": stanza,
+    }
+
+
+def parse_ack(stanza: str) -> dict:
+    """Parsea stanza <ak> (AcknowledgedExtension de la APK oficial)."""
+    return {
+        "type": "ack",
+        "message_id": _attr(stanza, "i") or _attr(stanza, "mi"),
         "raw": stanza,
     }
 
@@ -365,6 +505,7 @@ def extract_all_stanzas(xml: str) -> dict:
         "presences": re.findall(r"<p\b.*?</p>", xml, re.DOTALL),
         "iqs": re.findall(r"<iq\b.*?</iq>", xml, re.DOTALL),
         "tdacks": re.findall(r"<tdack\b[^>]*?/>", xml),
+        "acks": re.findall(r"<ak\b[^>]*?/>", xml),
         "streams": re.findall(r"<\?xml[^?]*\?><stream:stream[^>]*/?>", xml),
         "unknown": [],
     }
@@ -389,6 +530,7 @@ class IncrementalParser:
             (r"<m\b.*?</m>", parse_todus_message),
             (r"<p\b.*?</p>", parse_presence),
             (r"<iq\b.*?</iq>", parse_iq),
+            (r"<ak\b[^>]*?/>", parse_ack),
             (r"<tdack\b[^>]*?/>", parse_tdack),
         ]
 
