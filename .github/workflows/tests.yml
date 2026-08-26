@@ -77,7 +77,7 @@ jobs:
               lines.append(f'- `{node}` ({duration:.3f}s)')
 
           with open('.github/test-report.md', 'w') as f:
-              f.write('\\n'.join(lines))
+              f.write('\n'.join(lines))
           "
 
       - name: Commit test report

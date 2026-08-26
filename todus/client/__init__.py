@@ -44,13 +44,29 @@ class ToDusClient(
     ToDusCallMixin,
     ToDusClientBase,
 ):
-    """Cliente stateless para la API de ToDus unificado."""
+    """Cliente stateless para la API de ToDus unificado.
+
+    Para usar status, privacy, block, location, call y last se requiere ToDusClient2
+    (que incluye ``send_stanza`` y ``jid``).
+    """
 
     def __init__(self, *args, **kwargs):
         # Llamar al constructor de la base (mixins no suelen implementar __init__)
         super().__init__(*args, **kwargs)
         # Event bus para suscriptores locales
         self.events = EventBus()
+
+    @property
+    def jid(self) -> str:
+        """JID vacío para el cliente stateless."""
+        return ""
+
+    def send_stanza(self, stanza_xml: str) -> str:
+        """El cliente stateless no soporta send_stanza. Usa ToDusClient2."""
+        raise AuthenticationError(
+            "send_stanza requiere autenticación stateful. "
+            "Usa ToDusClient2 en lugar de ToDusClient."
+        )
 
 
 class ToDusClient2(ToDusClient):
@@ -115,8 +131,37 @@ class ToDusClient2(ToDusClient):
         return wrapper
 
     @property
+    def jid(self) -> str:
+        """JID del usuario autenticado (ej: '5353715614@im.todus.cu')."""
+        return util.build_jid(self.phone_number) if self.phone_number else ""
+
+    @property
     def token(self) -> str:
         return self._token
+
+    def send_stanza(self, stanza_xml: str) -> str:
+        """Envía una stanza XML por la sesión XMPP autenticada.
+
+        Usado internamente por los mixins (status, privacy, block, location, call, last).
+        Requiere estar autenticado (login).
+
+        Args:
+            stanza_xml: La stanza XML completa a enviar.
+
+        Returns:
+            El id de la petición extraído de la stanza.
+        """
+        if not self._token:
+            raise AuthenticationError("No autenticado. Ejecuta login() primero.")
+        with self._xmpp_session(self._token) as sock:
+            sock.send(stanza_xml.encode())
+        # Extraer el id de la stanza (formato: id='xxx' o i='xxx')
+        for prefix in ("id='", "i='"):
+            if prefix in stanza_xml:
+                start = stanza_xml.index(prefix) + len(prefix)
+                end = stanza_xml.index("'", start)
+                return stanza_xml[start:end]
+        return ""
 
     @property
     def registered(self) -> bool:

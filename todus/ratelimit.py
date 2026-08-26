@@ -32,6 +32,7 @@ class RateLimiter:
     
     def wait(self):
         """Bloquea hasta que sea seguro realizar la siguiente operación."""
+        sleep_time = 0.0
         with self._lock:
             now = time.time()
             cutoff = now - self.window
@@ -45,7 +46,7 @@ class RateLimiter:
                 sleep_time = self._timestamps[0] + self.window - now + 0.1
                 if sleep_time > 0:
                     logger.debug("Rate limit: esperando %.2fs", sleep_time)
-            
+        
         # Esperar fuera del lock para no bloquear otros threads
         if sleep_time > 0:
             time.sleep(sleep_time)
