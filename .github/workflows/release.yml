@@ -38,48 +38,34 @@ jobs:
           fi
 
       - name: Extract changelog section
-        id: changelog
         if: steps.check.outputs.exists == 'false'
         run: |
-          python3 << 'PYEOF'
-          import re
-
-          with open("CHANGELOG.md") as f:
+          python3 -c "
+          import re, os
+          version = os.environ['VERSION']
+          with open('CHANGELOG.md') as f:
               content = f.read()
-
-          version = "${{ steps.version.outputs.version }}"
-          # Match ## [X.Y.Z] - date
-          pattern = r"(## \[" + re.escape(version) + r"\][^
-]*
-)((?:[^
-#]+
-?)*?)(?=
-## \[|
----
-##|
-## |
----)"
-          # More robust: find the section between this heading and the next ## or ---
-          lines = content.split("\n")
+          lines = content.split('\n')
           capture = False
           section_lines = []
           for line in lines:
-              if line.startswith(f"## [{version}]"):
+              if line.startswith(f'## [{version}]'):
                   capture = True
                   continue
               if capture:
-                  if line.startswith("## ") or line.strip() == "---":
+                  if line.startswith('## '):
                       break
+                  if line.strip() == '---' and not section_lines:
+                      continue
                   section_lines.append(line)
-
-          body = "\n".join(section_lines).strip()
-          # Remove trailing --- if present
-          if body.endswith("---"):
+          body = '\n'.join(section_lines).strip()
+          if body.endswith('---'):
               body = body[:-3].strip()
-
-          with open(".github/release-body.md", "w") as f:
+          with open('.github/release-body.md', 'w') as f:
               f.write(body)
-          PYEOF
+          "
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
 
       - name: Create release
         if: steps.check.outputs.exists == 'false'
