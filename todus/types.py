@@ -4,7 +4,13 @@ from enum import IntEnum, StrEnum
 
 
 class FileType(IntEnum):
-    """Tipos de archivo soportados por ToDus."""
+    """Tipos de archivo soportados por ToDus.
+
+    Códigos confirmados contra la APK oficial:
+    TYPE_FILE=0, TYPE_VOICE=1, TYPE_AUDIO=2, TYPE_VIDEO=3,
+    TYPE_PICTURE=4, TYPE_PROFILE=5. ``PROFILE_THUMBNAIL`` es una
+    extensión propia del SDK (no existe en la APK).
+    """
     FILE = 0
     VOICE = 1
     AUDIO = 2
@@ -41,14 +47,26 @@ class PresenceShow(StrEnum):
 
 
 class ButtonSize(StrEnum):
-    """Tamaños de botón interactivo."""
+    """Tamaños de botón interactivo (valores de la APK oficial).
+
+    La APK usa ``0.4`` (MID_SIZE) y ``0.82`` (full). El valor ``0.5``
+    no existe en la APK.
+    """
     FULL = "0.82"
-    HALF = "0.5"
+    MID = "0.4"
+    # Alias deprecado (el valor correcto de la APK es 0.4)
+    HALF = "0.4"
 
 
 class ButtonCommand(StrEnum):
-    """Tipos de comando para botones interactivos."""
+    """Tipos de comando para botones interactivos (valores de la APK oficial).
+
+    La APK define: ``cmd_type_send``, ``cmd_open_web``,
+    ``cmd_copy_to_clipboard``, ``cmd_add_shortcut`` y
+    ``cmd_open_app_screen``.
+    """
     SEND = "cmd_type_send"
-    URL = "cmd_type_url"
-    COPY = "cmd_type_copy"
-    CALL = "cmd_type_call"
+    OPEN_WEB = "cmd_open_web"
+    COPY_TO_CLIPBOARD = "cmd_copy_to_clipboard"
+    ADD_SHORTCUT = "cmd_add_shortcut"
+    OPEN_APP_SCREEN = "cmd_open_app_screen"
