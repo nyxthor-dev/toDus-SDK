@@ -53,7 +53,7 @@ def receipt(to: str, msg_id: str, receipt_id: str = "", msg_type: str = "c") -> 
     """Receipt de *entrega* (received) para ToDus.
 
     Protocolo de toDus: ``rd`` = recibido/entregado (received)
-    (mensaje entregado al cliente) y ``dd`` = DisplayedExtension (leído).
+    (mensaje entregado al cliente) y ``dd`` = leído (displayed).
     """
     rid = receipt_id or _generate_msg_id()
     return (

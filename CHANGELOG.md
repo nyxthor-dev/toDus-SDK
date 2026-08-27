@@ -17,11 +17,11 @@ número + contraseña/token NO se modificó.
   cliente para usar puertos alternativos.
 - **Chat states invertidos**: `csc` = composing y `csp` = paused
   Antes estaba al revés en envío y recepción.
-- **Receipts invertidos**: `rd` = recibido/entregado (ReceivedExtension) y
-  `dd` = leído (DisplayedExtension). `receipt()` ahora emite `<rd>` y
+- **Receipts invertidos**: `rd` = recibido/entregado (received) y
+  `dd` = leído (displayed). `receipt()` ahora emite `<rd>` y
   `read_receipt()` emite `<dd>`; el parser se actualizó en consecuencia.
 - **`tdack` no existe en el protocolo**: `ack()` ahora emite `<ak>`
-  (AcknowledgedExtension). El parser reconoce `<ak>` (y `<tdack>` legado).
+  (elemento ACK del protocolo). El parser reconoce `<ak>` (y `<tdack>` legado).
 - **Extensión `reply:n` inventada**: las respuestas usan `resend:n`
   (attrs `i`, `mi`, `uowner`). `reply_to_id` de la API
   pública se mantiene y emite `<resend>`.
