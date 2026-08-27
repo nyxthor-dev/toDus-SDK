@@ -95,6 +95,22 @@ número + contraseña/token NO se modificó.
   verificar contra tráfico real (MITM) antes de producción.
 - Compresión de stream zlib y cert-pinning quedan pendientes (requieren
   los nombres ofuscados de negociación y los certificados `.der` de la APK).
+- **MAM verificado empíricamente contra producción (2026-08-27)**: el
+  servidor `im.todus.cu` responde `<error t='cancel'><service-unavailable/>`
+  con el texto *"No module is handling this query"* tanto para
+  `urn:xmpp:mam:1` como para el legado `todus:mam` — es decir, ejabberd
+  no tiene `mod_mam` cargado y el historial NO está disponible en
+  producción (el formato viejo de la v1.7.0 tampoco funcionaba: enviaba
+  la query y cerraba la sesión sin leer la respuesta). Se mantiene el
+  formato estándar XEP-0313 por coincidir con la APK.
+- **Test de integración real (2026-08-27)**, cuenta de producción contra
+  `auth.todus.cu` / `im.todus.cu:1756` / `s3.todus.cu`: login por
+  número+contraseña, handshake SASL+bind (resource `md5(usuario)_Android`
+  aceptado por el servidor), mensaje de texto, respuesta `resend:n`,
+  reacción `reaction:n`, edición, receipts `rd`/`dd`, chat states
+  `csc`/`csp`, subida de imagen PNG con dimensiones IHDR correctas,
+  borrado de mensaje y listener con keepalive concurrente durante 40s
+  sin desconexiones: **todo verificado OK**.
 
 ---
 
