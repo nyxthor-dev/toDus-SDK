@@ -30,7 +30,7 @@ from .cache import MessageStore, Message, MessageStatus, MessageQueue
 from .events import EventBus
 from .ratelimit import RateLimiter
 
-__version__ = "1.8.0"  # Alineación con APK v2.1.2: puerto 1756, receipts, voice/gif/reaction, sendall
+__version__ = "1.8.0"
 
 __all__ = [
     "ToDusClient",

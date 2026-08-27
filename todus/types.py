@@ -6,10 +6,10 @@ from enum import IntEnum, StrEnum
 class FileType(IntEnum):
     """Tipos de archivo soportados por ToDus.
 
-    Códigos confirmados contra la APK oficial:
+    Códigos del protocolo oficial:
     TYPE_FILE=0, TYPE_VOICE=1, TYPE_AUDIO=2, TYPE_VIDEO=3,
     TYPE_PICTURE=4, TYPE_PROFILE=5. ``PROFILE_THUMBNAIL`` es una
-    extensión propia del SDK (no existe en la APK).
+    extensión propia del SDK (no existe en el protocolo oficial).
     """
     FILE = 0
     VOICE = 1
@@ -47,21 +47,21 @@ class PresenceShow(StrEnum):
 
 
 class ButtonSize(StrEnum):
-    """Tamaños de botón interactivo (valores de la APK oficial).
+    """Tamaños de botón interactivo (valores oficiales).
 
-    La APK usa ``0.4`` (MID_SIZE) y ``0.82`` (full). El valor ``0.5``
-    no existe en la APK.
+    El protocolo usa ``0.4`` (medio) y ``0.82`` (completo). El valor ``0.5``
+    no existe en el protocolo oficial.
     """
     FULL = "0.82"
     MID = "0.4"
-    # Alias deprecado (el valor correcto de la APK es 0.4)
+    # Alias deprecado (el valor correcto es 0.4)
     HALF = "0.4"
 
 
 class ButtonCommand(StrEnum):
-    """Tipos de comando para botones interactivos (valores de la APK oficial).
+    """Tipos de comando para botones interactivos (valores oficiales).
 
-    La APK define: ``cmd_type_send``, ``cmd_open_web``,
+    El protocolo define: ``cmd_type_send``, ``cmd_open_web``,
     ``cmd_copy_to_clipboard``, ``cmd_add_shortcut`` y
     ``cmd_open_app_screen``.
     """

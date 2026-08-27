@@ -7,23 +7,23 @@ y este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [1.8.0] - 2026-08-27
 
-Alineación completa con la APK oficial v2.1.2 según el análisis de
-descompilación (jadx 1.5.0 + apktool 2.10.0). El flujo de login con
+Alineación completa con el protocolo de la app oficial v2.1.2.
+El flujo de login con
 número + contraseña/token NO se modificó.
 
-### Fixed (críticos, según análisis APK)
-- **Puerto XMPP**: `5222` → `1756` (producción, Service.java:214). Añadido
+### Fixed (críticos, según análisis del protocolo)
+- **Puerto XMPP**: `5222` → `1756` (puerto de producción). Añadido
   `XMPP_PORT_PROD2 = 5443` y parámetro `xmpp_port` en el constructor del
   cliente para usar puertos alternativos.
 - **Chat states invertidos**: `csc` = composing y `csp` = paused
-  (ChatStateExtensionToDus.java). Antes estaba al revés en envío y recepción.
+  Antes estaba al revés en envío y recepción.
 - **Receipts invertidos**: `rd` = recibido/entregado (ReceivedExtension) y
   `dd` = leído (DisplayedExtension). `receipt()` ahora emite `<rd>` y
   `read_receipt()` emite `<dd>`; el parser se actualizó en consecuencia.
-- **`tdack` no existe en la APK**: `ack()` ahora emite `<ak>`
+- **`tdack` no existe en el protocolo**: `ack()` ahora emite `<ak>`
   (AcknowledgedExtension). El parser reconoce `<ak>` (y `<tdack>` legado).
 - **Extensión `reply:n` inventada**: las respuestas usan `resend:n`
-  (attrs `i`, `mi`, `uowner`), como en la APK. `reply_to_id` de la API
+  (attrs `i`, `mi`, `uowner`). `reply_to_id` de la API
   pública se mantiene y emite `<resend>`.
 - **Escrituras parciales de socket**: todos los `sock.send()` migrados a
   `sendall()` (56 sitios). Nuevo `ThreadSafeSocket` con lock por conexión
@@ -35,7 +35,7 @@ número + contraseña/token NO se modificó.
 - **`normalize_phone()`**: rechaza números inválidos (antes truncaba
   silenciosamente basura de 16+ dígitos) y soporta `country_code`
   internacional.
-- **Keepalive**: 25s → 30s (PingManager.setPingInterval(30) de la APK).
+- **Keepalive**: 25s → 30s (intervalo del cliente oficial).
   Ahora usa `stop_event.wait()` para responder al stop de inmediato.
 - **`ToDusClientWithQueue.__del__`**: protegido contra `AttributeError`
   cuando `__init__` falló a medias.
@@ -43,22 +43,22 @@ número + contraseña/token NO se modificó.
 ### Changed
 - **MAM estándar XEP-0313**: namespace `todus:mam` → `urn:xmpp:mam:1` con
   formulario `jabber:x:data` (filtros `with`/`start`/`end`) y RSM.
-- **Bind con resource**: `<re>md5(username)_Android</re>` como la APK.
+- **Bind con resource**: `<re>md5(username)_Android</re>` como el cliente oficial.
 - **Subida de archivos**: `Content-Type: application/octet-stream` en el PUT.
 - **Descargas**: sin cabecera `Authorization` para URLs `/official/`,
-  `/catalog/`, `/status/`, `/stream/` (TokenAuthenticator.java).
+  `/catalog/`, `/status/`, `/stream/`.
 - **Botones**: atributos `btn_d` (descripción) añadidos; `btn_color` y
-  `btn_row` eliminados (no existen en la APK). `ButtonCommand` ahora usa
+  `btn_row` eliminados (no existen en el protocolo). `ButtonCommand` ahora usa
   `cmd_open_web`, `cmd_copy_to_clipboard`, `cmd_add_shortcut`,
   `cmd_open_app_screen`. `ButtonSize.MID = 0.4` (antes `HALF = 0.5`,
-  valor inexistente en la APK; `HALF` queda como alias deprecado de 0.4).
+  valor inexistente; `HALF` queda como alias deprecado de 0.4).
 - **msg_id estandarizado**: todos los métodos de envío usan IDs hex de 32
-  chars (`util.generate_msg_id()`), como la APK.
+  chars (`util.generate_msg_id()`), como el cliente oficial.
 - **Rate limiter en todos los envíos**: antes solo `send_message()`; ahora
   también imágenes, videos, stickers, notas de voz, GIFs, reacciones,
   ediciones y borrados (protege contra bans por spam).
 - **Mutación de miembros de grupo**: usa `td:g:add_occupant` con atributo
-  `new_occupants` en vez del namespace `x11` (que en la APK es solo
+  `new_occupants` en vez del namespace `x11` (que en el protocolo es solo
   consulta).
 - **CI**: el workflow de tests ya no hace commit del reporte al repo
   (contaminaba el historial); el reporte queda como artifact. Añadido paso
@@ -67,7 +67,7 @@ número + contraseña/token NO se modificó.
 - **pyproject.toml**: URLs corregidas de toDus-API → toDus-SDK.
 
 ### Added
-- **Stanzas nuevas de la APK**: `voice_message` (voice:n, con forma de onda
+- **Stanzas nuevas**: `voice_message` (voice:n, con forma de onda
   `ws`), `gif_message` (gif:n), `stream_video_message` (streamvideo:n),
   `reaction_message` (reaction:n), `forward_message` (resend:n),
   `tcall_message` (tcall:n) y `mention_extension` (mention:n).
@@ -86,15 +86,15 @@ número + contraseña/token NO se modificó.
   mentions (lista), resend (forward/reply) y tcall; evento `ack` en el
   `EventBus`.
 - **`ThreadSafeSocket`** exportado desde `todus.client.base`.
-- **55 tests nuevos** (`tests/test_apk_alignment.py`) incluyendo tests de
+- **55 tests nuevos** (`tests/test_protocol_alignment.py`) incluyendo tests de
   escrituras concurrentes atómicas sobre socket real.
 
 ### Notas
 - Las IQs `x16` (crear grupo), `td:g:promote/demote` e `info_by_link/id`
-  se implementaron según el análisis estático de la APK; se recomienda
+  se implementaron según el análisis del protocolo; se recomienda
   verificar contra tráfico real (MITM) antes de producción.
 - Compresión de stream zlib y cert-pinning quedan pendientes (requieren
-  los nombres ofuscados de negociación y los certificados `.der` de la APK).
+  los parámetros de negociación y los certificados del servidor).
 - **MAM verificado empíricamente contra producción (2026-08-27)**: el
   servidor `im.todus.cu` responde `<error t='cancel'><service-unavailable/>`
   con el texto *"No module is handling this query"* tanto para
@@ -102,7 +102,7 @@ número + contraseña/token NO se modificó.
   no tiene `mod_mam` cargado y el historial NO está disponible en
   producción (el formato viejo de la v1.7.0 tampoco funcionaba: enviaba
   la query y cerraba la sesión sin leer la respuesta). Se mantiene el
-  formato estándar XEP-0313 por coincidir con la APK.
+  formato estándar XEP-0313 por coincidir con el protocolo oficial.
 - **Test de integración real (2026-08-27)**, cuenta de producción contra
   `auth.todus.cu` / `im.todus.cu:1756` / `s3.todus.cu`: login por
   número+contraseña, handshake SASL+bind (resource `md5(usuario)_Android`

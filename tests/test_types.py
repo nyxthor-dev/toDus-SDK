@@ -46,7 +46,7 @@ class TestPresenceShow:
 
 class TestButtonSize:
     def test_values(self):
-        # APK: 0.4 (MID_SIZE) y 0.82 (full); 0.5 no existe
+        # 0.4 (medio) y 0.82 (completo); 0.5 no existe
         assert ButtonSize.FULL == "0.82"
         assert ButtonSize.MID == "0.4"
         assert ButtonSize.HALF == "0.4"  # alias deprecado
@@ -54,7 +54,7 @@ class TestButtonSize:
 
 class TestButtonCommand:
     def test_values(self):
-        # Comandos reales de la APK oficial
+        # Comandos reales del protocolo
         assert ButtonCommand.SEND == "cmd_type_send"
         assert ButtonCommand.OPEN_WEB == "cmd_open_web"
         assert ButtonCommand.COPY_TO_CLIPBOARD == "cmd_copy_to_clipboard"

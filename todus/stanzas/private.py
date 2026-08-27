@@ -1,8 +1,8 @@
 """Generadores de stanzas XML para chat privado en ToDus.
 
-Alineado con la APK oficial v2.1.2 (XMPPDataSource.java:646-744):
+Alineado con el protocolo oficial v2.1.2:
 - Las respuestas se implementan con la extensión ``resend`` (no existe
-  ninguna extensión ``reply:n`` en la APK).
+  ninguna extensión ``reply:n``).
 - Botones: atributos ``btn_t``, ``btn_cmd``, ``btn_msg_c``, ``btn_d``,
   ``btn_size`` (sin ``btn_color`` ni ``btn_row``).
 """
@@ -122,11 +122,11 @@ def image_message_simple(to: str, url: str, file_name: str, file_size: int,
 
 def button_message(to: str, text: str, buttons: list[dict], msg_id: str = "", msg_type: str = "c",
                    reply_to_id: str = "") -> str:
-    """Envía mensaje con botones interactivos (extensión ``button:n`` de la APK).
+    """Envía mensaje con botones interactivos (extensión ``button:n``).
 
     Cada botón es un dict con:
         - text: texto del botón (attr ``btn_t``)
-        - command: comando APK (attr ``btn_cmd``): ``cmd_type_send``,
+        - command: comando (attr ``btn_cmd``): ``cmd_type_send``,
           ``cmd_open_web``, ``cmd_copy_to_clipboard``, ``cmd_add_shortcut``,
           ``cmd_open_app_screen``
         - data: valor asociado (attr ``btn_msg_c``): texto a enviar, URL, etc.
@@ -220,7 +220,7 @@ def video_message(to: str, url: str, video_id: str, file_name: str, file_size: i
 def voice_message(to: str, url: str, file_name: str, file_size: int, duration: int,
                   wave_sample: str, msg_id: str = "", msg_type: str = "c",
                   caption: str = "", reply_to_id: str = "") -> str:
-    """Stanza con nota de voz (extensión ``voice:n`` de la APK).
+    """Stanza con nota de voz (extensión ``voice:n``).
 
     ``wave_sample`` (attr ``ws``) es la forma de onda para dibujar la
     burbuja de audio (lista de amplitudes separadas por coma).
@@ -246,7 +246,7 @@ def voice_message(to: str, url: str, file_name: str, file_size: int, duration: i
 def gif_message(to: str, url: str, file_name: str, file_size: int, width: int = 0, height: int = 0,
                 thumbnail: str = "", caption: str = "", msg_id: str = "", msg_type: str = "c",
                 reply_to_id: str = "") -> str:
-    """Stanza con GIF adjunto (extensión ``gif:n`` de la APK)."""
+    """Stanza con GIF adjunto (extensión ``gif:n``)."""
     mid = msg_id or _generate_msg_id()
     fid = _generate_msg_id()
     name_esc = util.escape_xml(file_name)
@@ -273,7 +273,7 @@ def gif_message(to: str, url: str, file_name: str, file_size: int, width: int = 
 
 def stream_video_message(to: str, guid: str, stream_url: str, duration: int = 0,
                          extra_codec: str = "", msg_id: str = "", msg_type: str = "c") -> str:
-    """Stanza de video en stream (extensión ``streamvideo:n`` de la APK).
+    """Stanza de video en stream (extensión ``streamvideo:n``).
 
     Atributos: ``gu`` (guid), ``su`` (stream url), ``du`` (duración),
     ``ec`` (extra codec).
@@ -290,11 +290,11 @@ def stream_video_message(to: str, guid: str, stream_url: str, duration: int = 0,
 
 def reaction_message(to: str, reacted_msg_id: str, reaction_code: str, reaction_id: str = "",
                      ca: str = "", msg_id: str = "", msg_type: str = "c") -> str:
-    """Stanza de reacción a un mensaje (extensión ``reaction:n`` de la APK).
+    """Stanza de reacción a un mensaje (extensión ``reaction:n``).
 
     Atributos: ``i`` (id de la reacción), ``mi`` (id del mensaje que se
     reacciona), ``mir`` (id del mensaje de reacción original), ``rc``
-    (código del emoji), ``ca`` (atributo adicional de la APK).
+    (código del emoji), ``ca`` (atributo adicional).
     """
     rid = reaction_id or _generate_msg_id()
     return (
@@ -307,7 +307,7 @@ def reaction_message(to: str, reacted_msg_id: str, reaction_code: str, reaction_
 
 def forward_message(to: str, original_msg_id: str, original_owner: str = "",
                     msg_id: str = "", msg_type: str = "c", body: str = "") -> str:
-    """Reenvía (forward) un mensaje (extensión ``resend:n`` de la APK).
+    """Reenvía (forward) un mensaje (extensión ``resend:n``).
 
     Atributos: ``i`` (id del reenvío), ``mi`` (id del mensaje original),
     ``uowner`` (JID del dueño original del mensaje).
@@ -326,7 +326,7 @@ def forward_message(to: str, original_msg_id: str, original_owner: str = "",
 
 def tcall_message(to: str, call_state: str, call_id: str, msg_id: str = "",
                   msg_type: str = "c") -> str:
-    """Señalización de llamada (extensión ``tcall:n`` de la APK).
+    """Señalización de llamada (extensión ``tcall:n``).
 
     Atributos: ``i`` (id), ``mi`` (id del mensaje), ``st`` (estado de la
     llamada: p.ej. ``ringing``, ``accept``, ``end``), ``cid`` (call id).

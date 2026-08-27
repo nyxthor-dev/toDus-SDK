@@ -29,5 +29,5 @@ def send_call_status(to_user: str, from_user: str, status: str, content: str = "
         f"status='{status}' "
         f"content='{content}'/>"
     )
-    # En la APK usan jid.domain() o 'xxxx@im.todus.cu'
+    # El destino es el dominio del JID o 'xxxx@im.todus.cu'
     return build_iq("set", "xxxx@im.todus.cu", query)

@@ -292,7 +292,7 @@ def group_get_members_iq(to: str, msg_id: str = "") -> str:
 def group_set_members_iq(to: str, affiliations: dict[str, str], msg_id: str = "") -> str:
     """Stanza IQ para modificar roles, añadir o expulsar miembros.
 
-    Las mutaciones de membresía en la APK usan ``td:g:add_occupant`` con el
+    Las mutaciones de membresía usan ``td:g:add_occupant`` con el
     atributo ``new_occupants`` (lista de JIDs separados por coma), no el
     namespace x11 (que es solo consulta/get).
 
@@ -312,8 +312,8 @@ def group_create_iq(room_name: str, occupants: list[str] = None, msg_id: str = "
                     to: str = "muclight.im.todus.cu") -> str:
     """Stanza IQ para crear un grupo MUC Light (namespace ``x16``).
 
-    Estructura basada en XEP-0370 adaptada al fork Smack de la APK
-    (CreateGroupIQ.java). ``occupants`` es una lista de teléfonos.
+    Estructura basada en XEP-0370 adaptada al cliente oficial
+    ``occupants`` es una lista de teléfonos.
     """
     mid = msg_id or _generate_msg_id()
     occupants_xml = ""
