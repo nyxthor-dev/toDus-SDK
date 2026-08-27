@@ -1,4 +1,4 @@
-"""Tests de alineación con la APK oficial v2.1.2.
+"""Tests de alineación con el protocolo oficial v2.1.2.
 
 Cubre: stanzas nuevas (voice, gif, streamvideo, reaction, resend, tcall,
 mention), IQs de grupo nuevas, parser de las extensiones nuevas,
@@ -23,7 +23,7 @@ from todus.util import normalize_phone, generate_msg_id, get_image_dimensions
 
 class TestConstants:
     def test_xmpp_port_is_prod(self):
-        # La APK usa 1756 en producción (Service.java:214)
+        # El puerto de producción es 1756
         assert constants.XMPP_PORT == 1756
 
     def test_xmpp_port_prod2(self):
@@ -34,7 +34,7 @@ class TestConstants:
         assert constants.KEEPALIVE_INTERVAL == 30
 
 
-# --- Stanzas nuevas de la APK ---
+# --- Stanzas nuevas (v2.1.2) ---
 
 class TestNewPrivateStanzas:
     def test_voice_message(self):
@@ -90,19 +90,19 @@ class TestNewPrivateStanzas:
         assert "l='5'" in xml
         assert "ui='5354123456@im.todus.cu'" in xml
 
-    def test_button_message_apk_attrs(self):
+    def test_button_message_official_attrs(self):
         btns = [{"text": "Web", "command": "cmd_open_web", "data": "https://x.cu",
                  "description": "Abrir sitio", "size": "0.4"}]
         xml = private.button_message("53@im.todus.cu", "Ver", btns)
         assert "btn_d='Abrir sitio'" in xml
         assert "btn_size='0.4'" in xml
         assert "btn_cmd='cmd_open_web'" in xml
-        # atributos inventados que la APK no soporta
+        # atributos no soportados por el protocolo
         assert "btn_color" not in xml
         assert "btn_row" not in xml
 
     def test_no_reply_extension(self):
-        # reply:n no existe en la APK: se usa resend:n
+        # no existe reply:n: se usa resend:n
         xml = private.message("53@im.todus.cu", "hola", reply_to_id="orig")
         assert "reply:n" not in xml
         assert "<resend" in xml
@@ -141,7 +141,7 @@ class TestNewGroupStanzas:
         assert "room='abc123@muclight.im.todus.cu'" in xml
 
     def test_set_members_uses_add_occupant(self):
-        # La APK muta miembros con td:g:add_occupant, no con x11
+        # Las mutaciones de miembros usan td:g:add_occupant, no x11
         xml = group.group_set_members_iq("g1@muclight.im.todus.cu",
                                          {"5354123456": "participant"})
         assert "xmlns='td:g:add_occupant'" in xml

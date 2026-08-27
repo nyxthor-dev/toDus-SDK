@@ -134,7 +134,7 @@ def parse_todus_message(stanza: str) -> dict:
             "size": btn_match.group(4)
         })
 
-    # Descripción de botones (btn_d, APK oficial)
+    # Descripción de botones (btn_d)
     btn_d_match = re.search(r"btn_d='([^']*)'", stanza)
     if btn_d_match and result["buttons"]:
         result["buttons"][-1]["description"] = util.unescape_xml(btn_d_match.group(1))
@@ -379,7 +379,7 @@ def parse_todus_message(stanza: str) -> dict:
         if ics_match:
             result["event_ics"] = ics_match.group(1).strip()
 
-    # Estado de chat (XEP-0085 ofuscado según la APK:
+    # Estado de chat (XEP-0085 ofuscado de toDus:
     # csc=composing, csp=paused, csa=active, csi=inactive, csg=gone)
     if "<csc xmlns='uc1'/>" in stanza:
         result["chat_state"] = "composing"
@@ -392,7 +392,7 @@ def parse_todus_message(stanza: str) -> dict:
     elif "<csg xmlns='uc1'/>" in stanza:
         result["chat_state"] = "gone"
 
-    # Recibos según la APK oficial (ChatMarkersElements.java):
+    # Recibos según el protocolo de toDus:
     # rd = Received (entregado), dd = Displayed (leído)
     receipt_match = re.search(r"<rd\b[^>]*>", stanza)
     if receipt_match:
@@ -406,7 +406,7 @@ def parse_todus_message(stanza: str) -> dict:
             result["receipt"] = _attr(read_tag, "i")
             result["receipt_type"] = "read"
 
-    # ACK (ak, AcknowledgedExtension de la APK; tdack se mantiene
+    # ACK (ak; tdack se mantiene
     # por compatibilidad con versiones anteriores del SDK)
     ack_match = re.search(r"<ak\b[^>]*>", stanza)
     if ack_match:
@@ -481,7 +481,7 @@ def parse_iq(stanza: str) -> dict:
 
 
 def parse_tdack(stanza: str) -> dict:
-    """Parsea stanza <tdack> (legado, no existe en la APK)."""
+    """Parsea stanza <tdack> (legado del SDK)."""
     return {
         "type": "tdack",
         "message_id": _attr(stanza, "mi"),
@@ -490,7 +490,7 @@ def parse_tdack(stanza: str) -> dict:
 
 
 def parse_ack(stanza: str) -> dict:
-    """Parsea stanza <ak> (AcknowledgedExtension de la APK oficial)."""
+    """Parsea stanza <ak> (ACK del protocolo oficial)."""
     return {
         "type": "ack",
         "message_id": _attr(stanza, "i") or _attr(stanza, "mi"),

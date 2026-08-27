@@ -115,7 +115,7 @@ class ToDusMessageMixin:
     def send_voice_message(self, token: str, to_jid: str, url: str, file_name: str,
                            file_size: int, duration: int, wave_sample: str = "",
                            caption: str = "", reply_to_id: str = "") -> str:
-        """Envía nota de voz (extensión voice:n de la APK).
+        """Envía nota de voz (extensión voice:n).
 
         ``wave_sample`` es la forma de onda para dibujar la burbuja
         (amplitudes separadas por coma).
@@ -132,7 +132,7 @@ class ToDusMessageMixin:
     def send_gif_message(self, token: str, to_jid: str, url: str, file_name: str,
                          file_size: int, width: int = 0, height: int = 0,
                          thumbnail: str = "", caption: str = "", reply_to_id: str = "") -> str:
-        """Envía GIF (extensión gif:n de la APK)."""
+        """Envía GIF (extensión gif:n)."""
         self._rate_limiter.wait()
         mid = util.generate_msg_id()
         msg = stanza.gif_message(to_jid, url, file_name, file_size, width, height,
@@ -144,7 +144,7 @@ class ToDusMessageMixin:
     def send_stream_video_message(self, token: str, to_jid: str, guid: str,
                                   stream_url: str, duration: int = 0,
                                   extra_codec: str = "") -> str:
-        """Envía video en stream (extensión streamvideo:n de la APK)."""
+        """Envía video en stream (extensión streamvideo:n)."""
         self._rate_limiter.wait()
         mid = util.generate_msg_id()
         msg = stanza.stream_video_message(to_jid, guid, stream_url, duration,
@@ -155,7 +155,7 @@ class ToDusMessageMixin:
 
     def send_reaction(self, token: str, to_jid: str, reacted_msg_id: str,
                       reaction_code: str) -> str:
-        """Envía una reacción a un mensaje (extensión reaction:n de la APK)."""
+        """Envía una reacción a un mensaje (extensión reaction:n)."""
         self._rate_limiter.wait()
         mid = util.generate_msg_id()
         msg = stanza.reaction_message(to_jid, reacted_msg_id, reaction_code, msg_id=mid)
@@ -165,7 +165,7 @@ class ToDusMessageMixin:
 
     def forward_message(self, token: str, to_jid: str, original_msg_id: str,
                         original_owner: str = "", body: str = "") -> str:
-        """Reenvía un mensaje (extensión resend:n de la APK)."""
+        """Reenvía un mensaje (extensión resend:n)."""
         self._rate_limiter.wait()
         mid = util.generate_msg_id()
         msg = stanza.forward_message(to_jid, original_msg_id, original_owner,
@@ -176,7 +176,7 @@ class ToDusMessageMixin:
 
     def send_call_signal(self, token: str, to_jid: str, call_state: str,
                          call_id: str) -> str:
-        """Envía señalización de llamada (extensión tcall:n de la APK)."""
+        """Envía señalización de llamada (extensión tcall:n)."""
         mid = util.generate_msg_id()
         msg = stanza.tcall_message(to_jid, call_state, call_id, msg_id=mid)
         with self._xmpp_session(token) as sock:
@@ -376,7 +376,7 @@ class ToDusMessageMixin:
         )
 
         # enviar receipt de entrega (received/rd) para mensajes con contenido
-        # si no es borrado, como hace la APK al recibir
+        # si no es borrado (comportamiento del cliente oficial)
         if is_content and not msg.get("deleted"):
             msg_id = msg.get("id", "")
             msg_from = msg.get("from", "")
@@ -414,7 +414,7 @@ class ToDusMessageMixin:
                     except Exception:
                         logger.exception("Error despachando 'iq'")
 
-                # ack (APK) y tdack (legado)
+                # ack (oficial) y tdack (legado)
                 if msg.get("type") in ("ack", "tdack") or msg.get("ack"):
                     try:
                         self.events.dispatch("ack", msg)

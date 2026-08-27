@@ -29,7 +29,7 @@ def ping(ping_id: str) -> str:
 def chat_state(to: str, state: str, msg_id: str = "", msg_type: str = "c") -> str:
     """Notificación de estado de chat para ToDus (XEP-0085 ofuscado).
 
-    La APK oficial define (ChatStateExtensionToDus.java):
+    El protocolo de toDus define:
     ``csc`` = composing (escribiendo), ``csp`` = paused (dejó de escribir),
     ``csa`` = active, ``csi`` = inactive, ``csg`` = gone.
     """
@@ -52,7 +52,7 @@ def chat_state(to: str, state: str, msg_id: str = "", msg_type: str = "c") -> st
 def receipt(to: str, msg_id: str, receipt_id: str = "", msg_type: str = "c") -> str:
     """Receipt de *entrega* (received) para ToDus.
 
-    Según ChatMarkersElements.java de la APK: ``rd`` = ReceivedExtension
+    Protocolo de toDus: ``rd`` = recibido/entregado (received)
     (mensaje entregado al cliente) y ``dd`` = DisplayedExtension (leído).
     """
     rid = receipt_id or _generate_msg_id()
@@ -66,7 +66,7 @@ def receipt(to: str, msg_id: str, receipt_id: str = "", msg_type: str = "c") -> 
 def read_receipt(to: str, msg_id: str, receipt_id: str = "", msg_type: str = "c") -> str:
     """Receipt de *lectura* (displayed) para ToDus.
 
-    ``dd`` = DisplayedExtension en la APK oficial.
+    ``dd`` = leído (displayed) en el protocolo oficial.
     """
     rid = receipt_id or _generate_msg_id()
     return (
@@ -77,9 +77,9 @@ def read_receipt(to: str, msg_id: str, receipt_id: str = "", msg_type: str = "c"
 
 
 def ack(msg_id: str, to: str = "") -> str:
-    """ACK de mensaje (AcknowledgedExtension de la APK, elemento ``ak``).
+    """ACK de mensaje (elemento ``ak``).
 
-    Nota: la APK oficial no tiene ningún elemento ``tdack``; el elemento
+    Nota: el protocolo oficial no tiene ningún elemento ``tdack``; el elemento
     correcto para reconocer mensajes (usado en canales) es ``ak``.
     """
     to_attr = f" to='{to}'" if to else ""
@@ -114,8 +114,8 @@ def sasl_auth(authstr: bytes) -> bytes:
 def bind(iq_id: str, username: str = "") -> str:
     """Resource bind.
 
-    La APK envía ``<re>md5(username)_Android</re>`` como resource
-    (Bind.java). Sin resource el servidor asigna uno aleatorio.
+    El cliente oficial envía ``<re>md5(username)_Android</re>`` como resource
+    Sin resource el servidor asigna uno aleatorio.
     """
     if username:
         resource = hashlib.md5(username.encode()).hexdigest() + "_Android"
@@ -129,7 +129,7 @@ def mam_query(query_id: str, since: str = "", before: str = "", limit: int = 50,
               with_jid: str = "") -> str:
     """Query de Message Archive Management (XEP-0313, ``urn:xmpp:mam:1``).
 
-    La APK usa el namespace estándar MAM:1 con formulario ``jabber:x:data``
+    El protocolo usa el namespace estándar MAM:1 con formulario ``jabber:x:data``
     y RSM para paginación — no un namespace propietario.
     """
     fields = ""

@@ -13,7 +13,7 @@ def block_user(jid: str) -> str:
 
 def unblock_user(contact_jid: str) -> str:
     """Desbloquea a un usuario."""
-    # En la APK parece usar <contact> hijo o atributo contact, lo usamos como atributo por convención
+    # Se usa el atributo contact por convención (alternativa: elemento hijo)
     query = f"<query xmlns='todus:block:unset:2' contact='{contact_jid}'/>"
     return build_iq("set", BLOCK_JID, query)
 

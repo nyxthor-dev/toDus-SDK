@@ -84,7 +84,7 @@ client.listen_messages(client.token, on_message)
 - **Notas de voz** con forma de onda y **GIFs**
 - **Reacciones** (emojis) y **reenvíos**
 - Ubicación, contactos, eventos
-- Botones interactivos (comandos oficiales de la APK)
+- Botones interactivos (comandos oficiales)
 - Ediciones y eliminaciones
 - Confirmación de entrega y lectura
 
@@ -167,7 +167,7 @@ Las contribuciones son bienvenidas! Ver [guía de contribución](CONTRIBUTING.md
 ## 🔌 Conexión XMPP
 
 Desde la v1.8.0 el SDK usa el **puerto 1756** de producción (el mismo que
-la APK oficial v2.1.2). Puerto alternativo PROD_2: `5443`.
+la app oficial v2.1.2). Puerto alternativo PROD_2: `5443`.
 
 ```python
 # Puerto por defecto (1756)

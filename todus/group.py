@@ -439,7 +439,7 @@ class GroupClient:
 
         return mid
 
-    # --- Nuevas operaciones de grupo (APK v2.1.2) ---
+    # --- Nuevas operaciones de grupo (v2.1.2) ---
 
     def create_group(self, room_name: str, members: list[str] = None) -> str:
         """Crea un grupo MUC Light (IQ x16).

@@ -93,7 +93,7 @@ class TestPrivateMessage:
         assert "ad='false'" in xml
 
     def test_reply_to_in_message(self):
-        # La APK no tiene extensión reply:n; las respuestas usan resend:n
+        # No existe la extensión reply:n; las respuestas usan resend:n
         xml = message("53@im.todus.cu", "resp", reply_to_id="original")
         assert "<resend xmlns='resend:n'" in xml
         assert "mi='original'" in xml
@@ -119,13 +119,13 @@ class TestUtilityStanzas:
         assert "urn:xmpp:ping" in xml
 
     def test_chat_state_composing(self):
-        # APK: csc = composing (no csp)
+        # csc = composing (no csp)
         xml = chat_state("53@im.todus.cu", "composing")
         assert "<csc" in xml
         assert "<csp" not in xml
 
     def test_chat_state_paused(self):
-        # APK: csp = paused (no csc)
+        # csp = paused (no csc)
         xml = chat_state("53@im.todus.cu", "paused")
         assert "<csp" in xml
         assert "<csc" not in xml
@@ -136,20 +136,20 @@ class TestUtilityStanzas:
         assert "<csg" in chat_state("53@im.todus.cu", "gone")
 
     def test_receipt(self):
-        # APK: rd = Received (entrega)
+        # rd = recibido/entregado
         xml = receipt("53@im.todus.cu", "msg1")
         assert "<rd" in xml
         assert "i='msg1'" in xml
         assert "<dd" not in xml
 
     def test_read_receipt(self):
-        # APK: dd = Displayed (lectura)
+        # dd = leído (displayed)
         xml = read_receipt("53@im.todus.cu", "msg1")
         assert "<dd" in xml
         assert "<rd" not in xml
 
     def test_ack(self):
-        # APK: elemento ak (AcknowledgedExtension); tdack no existe
+        # elemento ak (ACK); tdack no existe
         xml = ack("msg1")
         assert "<ak" in xml
         assert "i='msg1'" in xml
@@ -177,14 +177,14 @@ class TestUtilityStanzas:
         assert "<b1" in xml
 
     def test_bind_with_resource(self):
-        # APK: resource = md5(username)_Android
+        # resource = md5(username)_Android
         xml = bind("b1", username="5354123456")
         assert "<re>" in xml
         assert "_Android</re>" in xml
         assert len(re.search(r"<re>([0-9a-f]+)_Android</re>", xml).group(1)) == 32
 
     def test_mam_query(self):
-        # APK: namespace estándar XEP-0313 (urn:xmpp:mam:1)
+        # namespace estándar XEP-0313 (urn:xmpp:mam:1)
         xml = mam_query("q1", since="2024-01-01T00:00:00Z", limit=20)
         assert "urn:xmpp:mam:1" in xml
         assert "todus:mam" not in xml

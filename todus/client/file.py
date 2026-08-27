@@ -9,14 +9,14 @@ from ..errors import ConnectionLostError, TokenExpiredError, UploadError
 
 logger = logging.getLogger("todus")
 
-# URLs que la APK descarga SIN cabecera Authorization (TokenAuthenticator.java)
+# URLs que se descargan SIN cabecera Authorization
 NO_AUTH_URL_MARKERS = ("/official/", "/catalog/", "/status/", "/stream/")
 
 
 def _download_headers(token: str) -> dict:
-    """Cabeceras de descarga alineadas con la APK oficial.
+    """Cabeceras de descarga alineadas con la app oficial.
 
-    La APK solo envía ``Authorization: Bearer`` cuando la URL no contiene
+    La app oficial solo envía ``Authorization: Bearer`` cuando la URL no contiene
     /official/, /catalog/, /status/ o /stream/.
     """
     headers = {"User-Agent": "okhttp/4.9.0"}
@@ -123,7 +123,7 @@ class ToDusFileMixin:
             up_url,
             data=upload_data,
             headers={
-                # La APK sube con application/octet-stream (UploadDataSource)
+                # La subida usa application/octet-stream
                 "Content-Type": "application/octet-stream",
                 "Content-Length": str(len(data)),
             },

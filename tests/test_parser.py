@@ -119,12 +119,12 @@ class TestParseMessage:
         assert r["deleted"] == "del01"
 
     def test_chat_state_composing(self):
-        # APK: csc = composing
+        # csc = composing
         r = parse_todus_message(STANZA_MSG_COMPOSING)
         assert r["chat_state"] == "composing"
 
     def test_chat_state_paused(self):
-        # APK: csp = paused
+        # csp = paused
         r = parse_todus_message(STANZA_MSG_PAUSED)
         assert r["chat_state"] == "paused"
 
