@@ -322,8 +322,22 @@ class TestNormalizePhone:
         with pytest.raises(ValueError):
             normalize_phone("53512345abc")
 
-    def test_international_country_code(self):
-        assert normalize_phone("5511987654321", country_code="55") == "5511987654321"
+    def test_rejects_international_numbers(self):
+        """ToDus es plataforma cubana: solo se aceptan números cubanos."""
+        # Brasil (5511...) debe rechazarse
+        with pytest.raises(ValueError):
+            normalize_phone("5511987654321")
+        # USA (1...) debe rechazarse
+        with pytest.raises(ValueError):
+            normalize_phone("15551234567")
+        # España (34...) debe rechazarse
+        with pytest.raises(ValueError):
+            normalize_phone("34612345678")
+
+    def test_rejects_too_long(self):
+        # 16 dígitos con prefijo 53 → rechazado (no es 53 + 8)
+        with pytest.raises(ValueError):
+            normalize_phone("5351234567890123")
 
 
 class TestGenerateMsgId:

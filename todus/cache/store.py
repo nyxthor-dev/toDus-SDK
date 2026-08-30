@@ -6,7 +6,7 @@ import logging
 import threading
 import time
 from pathlib import Path
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass, asdict
 from typing import Optional, List
 from enum import StrEnum
 

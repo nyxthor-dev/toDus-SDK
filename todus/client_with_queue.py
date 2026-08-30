@@ -2,7 +2,6 @@
 
 from todus.client import ToDusClient2
 from todus.cache import MessageQueueMixin, MessageStatus
-from todus import util
 
 
 class ToDusClientWithQueue(MessageQueueMixin, ToDusClient2):

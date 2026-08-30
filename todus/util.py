@@ -25,26 +25,29 @@ def generate_msg_id() -> str:
     return secrets.token_hex(16)
 
 
-def normalize_phone(phone_number: str, country_code: str = "53") -> str:
-    """Normaliza número de teléfono al formato internacional sin '+'.
+def normalize_phone(phone_number: str) -> str:
+    """Normaliza número de teléfono al formato cubano (53XXXXXXXX, 10 dígitos).
 
-    Por defecto asume Cuba (``53``): acepta ``53XXXXXXXX`` (10 dígitos)
-    o el número nacional de 8 dígitos. Para otros países pasar
-    ``country_code`` explícitamente (números E.164 de hasta 15 dígitos).
+    Acepta:
+    - ``53XXXXXXXX`` (10 dígitos con prefijo internacional cubano)
+    - ``XXXXXXXX`` (8 dígitos nacionales, sin prefijo; se le añade ``53``)
 
-    A diferencia de versiones anteriores, rechaza entradas inválidas
-    (longitudes incorrectas) en lugar de truncarlas silenciosamente.
+    Cualquier otra entrada (longitud incorrecta, prefijo de otro país, etc.)
+    se rechaza con ``ValueError``.
+
+    Nota: ToDus es una plataforma de mensajería cubana y los SMS solo se
+    envían a números cubanos. No se aceptan números internacionales.
     """
     cleaned = re.sub(r"[\s+()\-.]", "", str(phone_number))
     if not cleaned.isdigit():
         raise ValueError(f"Número inválido: {phone_number}")
     national_len = 8
-    if cleaned.startswith(country_code) and len(cleaned) == len(country_code) + national_len:
-        return cleaned
-    if len(cleaned) == national_len:
+    country_code = "53"
+    # Número nacional sin prefijo (8 dígitos)
+    if len(cleaned) == national_len and not cleaned.startswith(country_code):
         return country_code + cleaned
-    if cleaned.startswith(country_code) and 11 <= len(cleaned) <= 15:
-        # Número internacional E.164 válido con otro country code
+    # Número completo con prefijo cubano (53 + 8 dígitos = 10 dígitos)
+    if cleaned.startswith(country_code) and len(cleaned) == len(country_code) + national_len:
         return cleaned
     raise ValueError(
         f"Número inválido: {phone_number} (se esperaban {national_len} dígitos "
