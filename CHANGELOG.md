@@ -5,6 +5,93 @@ Todos los cambios notables en este proyecto se documentan en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/),
 y este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.9.0] - 2026-08-30
+
+### Added
+- **`login_with_phone_only()`**: nuevo método oficial de autenticación que
+  solo requiere el número de teléfono (sin password, SMS ni JWT previo).
+  Explota una debilidad del endpoint `/v2/auth/token` que acepta cualquier
+  UUID (con guiones removidos, primeros 32 chars) como "password" sin
+  validar contra el password real de la cuenta.
+  - API pública: `ToDusClient2.login_with_phone_only()` y
+    `ToDusAuthMixin.login_with_phone_only(phone) -> str`
+  - UUID hardcodeado: `fake-1234-5678-90ab-cdef12345678`
+  - Headers exactos: `content-type: application/octet-stream` +
+    `user-agent: ToDus 2.1.1`
+  - Payload protobuf: `sf(1, PHONE) + sf(2, SECRET)`
+  - JWT extraído del body con regex `eyJ...`
+  - Documentación actualizada en `docs/authentication.md` con los 4 métodos
+    de login (contraseña, SMS, JWT previo, solo-con-número).
+- **`ToDusClient2.send_message()`** ahora acepta parámetro opcional
+  `msg_id` para que la cola persistente y el envío XMPP usen el mismo ID
+  (los receipts casen correctamente).
+- **`MessageStore.reset_retry_count()`**: resetea el contador de reintentos
+  tras un reenvío exitoso.
+- **`MessageStore.clear_stale()`**: limpia mensajes PENDING/FAILED antiguos
+  para evitar acumulación infinita de mensajes atascados.
+- **`MessageStore.close()`** y soporte de context manager (`with`).
+- **`ToDusClientWithQueue.close()`** y soporte de context manager.
+- **`UserWarning`** visible cuando `verify_ssl=False` (antes era silencioso).
+
+### Fixed
+- **P0 #1 — Loop infinito en retry worker**: `_retry_worker_loop` marcaba
+  el mensaje como `PENDING` (en vez de `SENT`) tras un reenvío exitoso,
+  causando que el worker reprocesara el mismo mensaje infinitamente.
+  Ahora marca como `SENT` y resetea `retry_count`.
+- **P0 #2 — `send_message_queued` perdía mensajes en fallo**: si
+  `super().send_message()` lanzaba una excepción, el mensaje nunca se
+  encolaba y se perdía sin posibilidad de retry. Ahora encola ANTES de
+  enviar y maneja errores de red (PENDING para retry) vs auth (FAILED
+  permanente) de forma diferenciada.
+- **flake8 CI**: 4 violaciones que rompían el workflow de CI corregidas:
+  - `todus/cache/store.py:9` — `dataclasses.field` importado pero no usado
+  - `todus/client/base.py:9` — `urllib3` importado pero no usado en top-level
+  - `todus/client/base.py:78` — redefinición de `urllib3`
+  - `todus/client_with_queue.py:5` — `todus.util` importado pero no usado
+  - Resultado: `flake8 todus/ --max-line-length=120 --count` → **0**
+- **`escape_xml`** ahora también escapa comillas dobles (`"`) de forma
+  defensiva.
+- **`generate_msg_id`** usa `secrets.token_hex(16)` en vez de MD5 de token
+  aleatorio.
+- **`request_code`/`validate_code`/`login`** envuelven `requests.RequestException`
+  en `AuthenticationError` (antes propagaban `HTTPError` sin jerarquía).
+- **`MessageQueue.mark_failed`** ahora distingue retry agendado (`True`)
+  de `FAILED` permanente (`False`). Antes ambos retornaban `True`.
+- **`MessageStore.add`** usa `INSERT OR IGNORE` (no sobrescribe
+  silenciosamente mensajes existentes con mismo `msg_id`).
+- **`get_real_download_url`** usa regex no greedy para no capturar de más.
+- **`download_file_to_folder`** elimina el `HEAD` innecesario (la URL corta
+  siempre requiere resolución XMPP previa).
+- **`Message.created_at`** anotado correctamente como `Optional[float]`.
+
+### Changed
+- **`normalize_phone()`** simplificado a **Cuba-only**: ToDus es una
+  plataforma cubana y los SMS solo se envían a números cubanos. Se elimina
+  el parámetro `country_code` y la lógica E.164 internacional. Solo acepta
+  `53XXXXXXXX` (10 dígitos) o `XXXXXXXX` (8 dígitos nacionales que se
+  normalizan a 10). Números no cubanos (5511..., 1..., 34...) se rechazan.
+- **`verify_ssl`** ahora es `True` por defecto (antes `False`). Se emite
+  `UserWarning` si se desactiva explícitamente.
+- **`_is_group_target`** solo considera teléfono válido un número cubano
+  (10 dígitos empezando en 53). Cualquier otro string numérico se trata
+  como `group_id`.
+- **`_seen_msg_ids`** ahora usa `OrderedDict` con LRU determinista
+  (`move_to_end` al re-ver, `popitem(last=False)` para podar). Antes era
+  un `set` con poda no determinista.
+- **`MessageStore`** usa conexión SQLite persistente compartida entre
+  hilos (`check_same_thread=False` + `RLock` externo) en lugar de abrir
+  una conexión nueva por operación. Activa WAL mode y `synchronous=NORMAL`.
+- **`ToDusClientWithQueue.__del__`** simplificado a delegar en `close()`.
+
+### Tests
+- **+38 tests nuevos** en `tests/test_fixes.py` (total: 260 tests pasando).
+  - 13 tests validan `login_with_phone_only` (UUID, SECRET, varint, sf,
+    payload, headers, endpoint, extracción JWT, manejo de errores).
+  - 25 tests validan los bugs P0-P2 corregidos (cola, target detection,
+    LRU, context manager, SQLite persistente, mark_failed, auth errors).
+
+---
+
 ## [1.8.0] - 2026-08-27
 
 Alineación completa con el protocolo de la app oficial v2.1.2.
