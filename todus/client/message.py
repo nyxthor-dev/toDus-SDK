@@ -15,10 +15,16 @@ class ToDusMessageMixin:
 
     # --- Mensajeria Privada ---
 
-    def send_message(self, token: str, to_jid: str, body: str, reply_to_id: str = "") -> str:
-        """Envía mensaje de texto privado. Retorna el msg_id generado."""
+    def send_message(self, token: str, to_jid: str, body: str, reply_to_id: str = "",
+                     msg_id: str = "") -> str:
+        """Envía mensaje de texto privado. Retorna el msg_id generado.
+
+        Si se pasa ``msg_id`` explícito, se usa ese en lugar de generar uno nuevo
+        (útil para que la cola persistente y el envío XMPP usen el mismo ID, de
+        modo que los receipts casen).
+        """
         self._rate_limiter.wait()
-        mid = util.generate_msg_id()
+        mid = msg_id or util.generate_msg_id()
         msg = stanza.message(to_jid, body, msg_id=mid, reply_to_id=reply_to_id)
         with self._xmpp_session(token) as sock:
             sock.sendall(msg.encode())
@@ -347,18 +353,21 @@ class ToDusMessageMixin:
         """
         dispatched = []
 
-        # Deduplicación: saltar mensajes ya procesados
+        # Deduplicación LRU: saltar mensajes ya procesados.
         msg_id = msg.get("id", "")
         if msg_id and hasattr(self, "_seen_msg_ids"):
             if msg_id in self._seen_msg_ids:
+                # Mover al final para mantener LRU (últimamente accedido)
+                self._seen_msg_ids.move_to_end(msg_id)
                 return dispatched
-            self._seen_msg_ids.add(msg_id)
-            # Limitar tamaño del set para evitar fuga de memoria
-            if len(self._seen_msg_ids) > 10000:
-                # Eliminar los 5000 más viejos
-                to_remove = list(self._seen_msg_ids)[:5000]
-                for old_id in to_remove:
-                    self._seen_msg_ids.discard(old_id)
+            self._seen_msg_ids[msg_id] = None
+            # Podar de forma determinista (más viejos primero)
+            max_size = getattr(self, "_seen_msg_ids_max", 10000)
+            trim_to = getattr(self, "_seen_msg_ids_trim_to", 5000)
+            if len(self._seen_msg_ids) > max_size:
+                # Eliminar los más viejos hasta llegar a trim_to
+                while len(self._seen_msg_ids) > trim_to:
+                    self._seen_msg_ids.popitem(last=False)
 
         # determinar si es 'mensaje' (contenido multimedia/texto)
         is_content = (

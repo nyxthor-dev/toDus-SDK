@@ -60,13 +60,16 @@ class MessageQueueMixin:
             if "@" not in to and not self._is_group_target(to):
                 to = build_jid(to)
 
-            # Reenviar según el tipo de mensaje
+            # Reenviar según el tipo de mensaje.
+            # Pasamos msg.msg_id explícito para que el mensaje XMPP y la entrada
+            # de la cola sigan usando el mismo ID.
             if msg_type == "text":
                 reply_to_id = metadata.get("reply_to_id", "")
-                super().send_message(self._token, to, msg.body, reply_to_id)
+                super().send_message(self._token, to, msg.body, reply_to_id,
+                                     msg_id=msg.msg_id)
             else:
                 # Para otros tipos, intentar como texto plano
-                super().send_message(self._token, to, msg.body)
+                super().send_message(self._token, to, msg.body, msg_id=msg.msg_id)
             return True
         except Exception as e:
             logger.error("Error reenviando mensaje %s: %s", msg.msg_id, e)
