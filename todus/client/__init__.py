@@ -80,7 +80,13 @@ class ToDusClient2(ToDusClient):
         self.password = password.strip() if password else ""
         self._token = ""
         self._group_client = None
-        self._seen_msg_ids: set = set()  # dedup de mensajes recibidos
+        # Deduplicación de mensajes recibidos usando OrderedDict como LRU.
+        # Cuando se alcanza ``MAX_SEEN_MSG_IDS``, se eliminan los más viejos
+        # de forma determinista (no dependiente del orden de hashing de set).
+        from collections import OrderedDict
+        self._seen_msg_ids: "OrderedDict[str, None]" = OrderedDict()
+        self._seen_msg_ids_max = 10000
+        self._seen_msg_ids_trim_to = 5000  # Al pasar el máximo, podar a este tamaño
 
     def _authstr_from_token(self, token: str) -> tuple[str, bytes]:
         phone, authstr = super()._authstr_from_token(token)
@@ -92,12 +98,18 @@ class ToDusClient2(ToDusClient):
     def _is_group_target(self, target: str) -> bool:
         """Detecta si el target es un group_id en lugar de un teléfono.
 
-        Se considera teléfono si:
-        - Es un string de solo dígitos
-        - Tiene entre 8 y 15 caracteres
-        - Empieza con '53' (Cuba) o '+' seguido de código de país
+        Consideraciones:
 
-        Cualquier otra cosa (group IDs alfanuméricos, JIDs, etc.) se trata como grupo.
+        - Un *teléfono válido* se trata como destinatario privado: 10 dígitos
+          empezando en ``53`` (Cuba) o un número E.164 internacional de 8 a 15
+          dígitos.
+        - Si contiene ``@`` se trata como JID; se considera grupo solo si el
+          JID contiene ``muclight`` o ``group``.
+        - Strings de 7 dígitos o menos, o strings no numéricos y sin ``@``,
+          se tratan como **grupo** (no como teléfono) para no enviar por
+          error a un número truncado. Antes, ``"5312345"`` (7 dígitos)
+          caía al ``return True`` final pero también lo hacía cualquier otro
+          string ambiguo. Ahora el comportamiento es explícito.
         """
         if not target:
             return False
@@ -107,9 +119,11 @@ class ToDusClient2(ToDusClient):
             # Teléfono cubano: 10 dígitos empezando por 53
             if len(clean) == 10 and clean.startswith("53"):
                 return False
-            # Teléfono con prefijo internacional: hasta 15 dígitos
+            # Teléfono internacional E.164: entre 8 y 15 dígitos
             if 8 <= len(clean) <= 15:
                 return False
+            # Otros numéricos (7 dígitos, etc.) no son teléfono válido → grupo
+            return True
         # Si contiene '@' es un JID (grupo o usuario)
         if "@" in target:
             # Los JIDs de grupo contienen 'muclight'
@@ -179,13 +193,15 @@ class ToDusClient2(ToDusClient):
 
     # --- Mensajería Privada / Grupo (auto-detección) ---
 
-    def send_message(self, to_phone: str, body: str, reply_to_id: str = "") -> str:
+    def send_message(self, to_phone: str, body: str, reply_to_id: str = "",
+                     msg_id: str = "") -> str:
         if not self._token:
             raise AuthenticationError("No autenticado")
         if self._is_group_target(to_phone):
-            return self.groups.send_message(to_phone, body, reply_to_id=reply_to_id)
+            return self.groups.send_message(to_phone, body, msg_id=msg_id,
+                                            reply_to_id=reply_to_id)
         to_jid = util.build_jid(to_phone)
-        return super().send_message(self._token, to_jid, body, reply_to_id)
+        return super().send_message(self._token, to_jid, body, reply_to_id, msg_id=msg_id)
 
     def edit_message(self, to_phone: str, new_body: str, original_msg_id: str, reply_to_id: str = "") -> str:
         if not self._token:

@@ -58,7 +58,7 @@ class ToDusClientBase:
         version_name: str = constants.AUTH_VERSION_NAME,
         version_code: str = constants.AUTH_VERSION_CODE,
         proxy: str | None = None,
-        verify_ssl: bool = False,
+        verify_ssl: bool = True,
         xmpp_port: int = constants.XMPP_PORT,
     ) -> None:
         self.version_name = version_name
@@ -71,6 +71,19 @@ class ToDusClientBase:
         self.session.verify = verify_ssl
 
         if not verify_ssl:
+            # Aviso visible (no silent): verify_ssl=False es inseguro frente a MITM.
+            # Los servidores de ToDus tienen certificados auto-firmados en muchos
+            # entornos; por eso se permite, pero debe ser una decisión consciente.
+            import warnings
+            import urllib3
+            warnings.warn(
+                "verify_ssl=False desactiva la verificación de certificados TLS. "
+                "Esto expone la conexión a ataques MITM. Úsalo solo en entornos "
+                "de pruebas o redes controladas donde los certificados no son "
+                "verificables (común con servidores de ToDus).",
+                stacklevel=2,
+                category=UserWarning,
+            )
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
         if self.proxy:

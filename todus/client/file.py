@@ -100,7 +100,12 @@ class ToDusFileMixin:
                 if response == "":
                     continue
                 if "i='" + sid + "-2'" in response and "du='" in response:
-                    match = re.match(".*du='(.*)' stat.*", response)
+                    # Regex no greedy para no capturar de más si hay múltiples
+                    # comillas simples en la respuesta.
+                    match = re.search(r"du='([^']*)'\s+stat", response)
+                    if not match:
+                        # Fallback: capturar hasta la próxima comilla simple
+                        match = re.search(r"du='([^']*)'", response)
                     if match:
                         return match.group(1).replace("amp;", "")
                     break
@@ -182,20 +187,11 @@ class ToDusFileMixin:
         final_path = os.path.join(folder, filename)
         temp_path = final_path + ".part"
 
-        # No eliminar archivo parcial: permite reanudar descargas previas
-
-        try:
-            test_resp = self.session.head(url, headers=headers, timeout=15, allow_redirects=True)
-            if test_resp.status_code in (200, 206, 401, 403, 302, 301):
-                real_url = url
-            else:
-                real_url = self.get_real_download_url(token, url)
-                if not real_url:
-                    raise UploadError("No se pudo resolver URL de descarga")
-        except Exception:
-            real_url = self.get_real_download_url(token, url)
-            if not real_url:
-                raise UploadError("No se pudo obtener URL de descarga")
+        # Resuelve la URL real vía XMPP. La URL corta de ToDus requiere resolución
+        # antes de poder hacer la descarga HTTP directa.
+        real_url = self.get_real_download_url(token, url)
+        if not real_url:
+            raise UploadError("No se pudo obtener URL de descarga")
 
         size = -1
         downloaded = 0

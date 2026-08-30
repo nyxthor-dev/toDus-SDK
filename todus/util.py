@@ -16,8 +16,13 @@ def generate_token(length: int = 8) -> str:
 
 
 def generate_msg_id() -> str:
-    """Genera msg_id en formato hex de 32 chars, como usa ToDus oficial."""
-    return hashlib.md5(generate_token(16).encode()).hexdigest()
+    """Genera msg_id en formato hex de 32 chars, como usa ToDus oficial.
+
+    Antes, se generaba como MD5 de un token aleatorio. ``secrets.token_hex(16)``
+    es equivalente en longitud (32 hex chars) pero criptográficamente más
+    directo y seguro.
+    """
+    return secrets.token_hex(16)
 
 
 def normalize_phone(phone_number: str, country_code: str = "53") -> str:
@@ -61,12 +66,19 @@ def parse_jid(jid: str) -> tuple[str, str]:
 
 
 def escape_xml(text: str) -> str:
-    """Escapa caracteres XML especiales, incluyendo apóstrofos."""
+    """Escapa caracteres XML especiales.
+
+    Escapa ``&``, ``<``, ``>``, apóstrofo (``'``) y comilla doble (``"``).
+    Aunque todas las stanzas generadas por el SDK usan comillas simples, escapar
+    también la comilla doble es defensivo: si en el futuro alguna stanza usa
+    comillas dobles para un atributo, el contenido del usuario ya estará seguro.
+    """
     return (
         text.replace("&", "&amp;")
         .replace("<", "&lt;")
         .replace(">", "&gt;")
         .replace("'", "&apos;")
+        .replace('"', "&quot;")
     )
 
 
@@ -75,8 +87,9 @@ def unescape_xml(text: str) -> str:
     return (
         text.replace("&lt;", "<")
         .replace("&gt;", ">")
-        .replace("&amp;", "&")
+        .replace("&quot;", '"')
         .replace("&apos;", "'")
+        .replace("&amp;", "&")
     )
 
 

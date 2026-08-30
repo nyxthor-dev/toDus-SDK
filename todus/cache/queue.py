@@ -76,7 +76,14 @@ class MessageQueue:
         return result
 
     def mark_failed(self, msg_id: str, error: str = "") -> bool:
-        """Marca mensaje como fallido."""
+        """Marca mensaje como fallido.
+
+        Returns:
+            ``True`` si se agendó un reintento (mensaje todavía tiene
+            reintentos disponibles). ``False`` si el mensaje se marcó
+            como FAILED permanente. Antes, ambos casos retornaban ``True``
+            y el caller no podía distinguir.
+        """
         msg = self.store.get(msg_id)
         if msg and msg.retry_count < msg.max_retries:
             # Reintentar
@@ -87,7 +94,7 @@ class MessageQueue:
             result = self.store.update_status(msg_id, MessageStatus.FAILED, error)
             if result:
                 self._trigger_callback("on_message_failed", msg)
-            return result
+            return False
 
     def get_backoff_time(self, msg: Message) -> float:
         """Calcula tiempo de espera para reintento (exponencial)."""
@@ -156,9 +163,12 @@ class MessageQueue:
 
                         success = self._send_fn(msg)
                         if success:
-                            self.store.update_status(msg_id=msg.msg_id, new_status=MessageStatus.PENDING)
+                            # Marcar como SENT, no dejar en PENDING (evita loop infinito).
+                            # Antes se llamaba a update_status(PENDING) lo que hacía que
+                            # el worker reintentara el mismo mensaje en cada iteración.
+                            self.store.update_status(msg_id=msg.msg_id, new_status=MessageStatus.SENT)
                             # Resetear retry_count ya que se reenvió correctamente
-                            # (el send_fn ya intentó enviar; si el caller marca como sent, se actualiza)
+                            self.store.reset_retry_count(msg.msg_id)
                         else:
                             self.mark_failed(msg.msg_id, error="retry_worker: reenvío falló")
 
