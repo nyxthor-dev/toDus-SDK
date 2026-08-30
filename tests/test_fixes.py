@@ -8,6 +8,7 @@ Estos tests validan específicamente los bugs corregidos en esta PR:
 - P2: ``MessageStore`` usa conexión persistente, ``clear_stale`` limpia PENDING.
 - P2: ``_seen_msg_ids`` es LRU determinista (OrderedDict).
 - P2: ``ToDusClientWithQueue`` soporta ``close()`` y context manager.
+- ``login_with_phone_only``: método oficial solo-con-número (sin password/SMS/JWT).
 """
 import os
 import time
@@ -188,13 +189,16 @@ class TestIsGroupTarget:
             os.unlink(self.tmpfile)
 
     @pytest.mark.parametrize("phone,expected", [
-        ("5312345678", False),     # Cuba válido (10 dígitos)
+        ("5312345678", False),     # Cuba válido (10 dígitos empezando por 53)
         ("5351234567", False),     # Cuba válido
         ("5312345", True),         # 7 dígitos - inválido como teléfono → grupo
-        ("1234567890123456", True),  # 16 dígitos - fuera de rango E.164
-        ("531234567", False),      # 9 dígitos internacional E.164 válido
-        ("12345678", False),       # 8 dígitos internacional E.164 mínimo
-        ("1234567", True),        # 7 dígitos - muy corto para E.164 → grupo
+        ("1234567890123456", True),  # 16 dígitos - fuera de rango
+        ("531234567", True),       # 9 dígitos - no es teléfono cubano válido → grupo
+        ("12345678", True),        # 8 dígitos pero no empieza por 53 → grupo
+        ("54123456", True),        # 8 dígitos nacionales sin 53 → grupo
+                                    # (la normalización ocurre en normalize_phone,
+                                    # no en _is_group_target)
+        ("1234567", True),         # 7 dígitos - muy corto → grupo
         ("+5312345678", False),   # Cuba con prefijo +
         ("abc123", True),         # No numérico → grupo
         ("", False),              # Vacío → no grupo (no target)
@@ -565,3 +569,214 @@ class TestPersistentConnection:
             assert store.get("ctx_test") is not None
         # Al salir del with, la conexión debe estar cerrada
         # (no podemos verificar directamente, pero al menos no debe lanzar)
+
+
+# ---------------------------------------------------------------------------
+# login_with_phone_only: método oficial solo-con-número
+# ---------------------------------------------------------------------------
+
+
+class TestLoginWithPhoneOnly:
+    """Valida el procedimiento exacto del login solo-con-número."""
+
+    def test_uuid_hardcoded_value(self):
+        """El UUID debe ser exactamente el del archivo botcliente.py."""
+        from todus.client.auth import PHONE_ONLY_UUID
+        assert PHONE_ONLY_UUID == "fake-1234-5678-90ab-cdef12345678"
+
+    def test_secret_derived_from_uuid(self):
+        """SECRET = UUID sin guiones, primeros 32 chars."""
+        from todus.client.auth import PHONE_ONLY_UUID, PHONE_ONLY_SECRET
+        expected = PHONE_ONLY_UUID.replace("-", "")[:32]
+        assert PHONE_ONLY_SECRET == expected
+        # Valor concreto esperado
+        assert PHONE_ONLY_SECRET == "fake1234567890abcdef12345678"
+
+    def test_varint_encoding(self):
+        """El varint protobuf debe codificarse correctamente."""
+        from todus.client.auth import _varint
+        # 0 → 0x00
+        assert _varint(0) == b"\x00"
+        # 10 → 0x0A
+        assert _varint(10) == b"\x0a"
+        # 150 → 0x96 0x01 (varint de 2 bytes)
+        assert _varint(150) == b"\x96\x01"
+
+    def test_sf_field_encoding(self):
+        """sf(n, v) debe producir bytes([(n<<3)|2]) + varint(len(v)) + v."""
+        from todus.client.auth import _sf
+        # sf(1, "5353715614") → campo 1 (0x0A) + longitud 10 (0x0A) + bytes
+        result = _sf(1, "5353715614")
+        assert result == b"\x0a\x0a" + b"5353715614"
+        # sf(2, "fake1234567890abcdef12345678") → campo 2 (0x12) + len 28 (0x1C) + bytes
+        result = _sf(2, "fake1234567890abcdef12345678")
+        assert result == b"\x12\x1c" + b"fake1234567890abcdef12345678"
+
+    def test_payload_matches_botcliente(self):
+        """El payload debe ser exactamente sf(1, PHONE) + sf(2, SECRET)."""
+        from todus.client.auth import (
+            _sf, PHONE_ONLY_SECRET, PHONE_ONLY_UUID,
+        )
+        phone = "5353715614"  # el del archivo botcliente.py
+        secret = PHONE_ONLY_SECRET
+        payload = _sf(1, phone) + _sf(2, secret)
+        # Campo 1: tag 0x0A, len 10, phone
+        # Campo 2: tag 0x12, len 28 (len de 'fake1234567890abcdef12345678'), secret
+        expected = (
+            b"\x0a\x0a" + b"5353715614"
+            + b"\x12\x1c" + b"fake1234567890abcdef12345678"
+        )
+        assert payload == expected
+
+    def test_headers_match_botcliente(self):
+        """Los headers deben ser content-type=octet-stream + user-agent=ToDus 2.1.1."""
+        from todus.client.auth import ToDusAuthMixin
+
+        mixin = ToDusAuthMixin.__new__(ToDusAuthMixin)
+        # Capturar headers usados
+        captured_headers = {}
+
+        def fake_post(url, data, headers, timeout):
+            captured_headers.update(headers)
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.content = b"eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyIjoiNTM1MzcxNTYxNCJ9.sig"
+            mock_resp.raise_for_status = MagicMock()
+            return mock_resp
+
+        mixin.session = MagicMock()
+        mixin.session.post.side_effect = fake_post
+
+        mixin.login_with_phone_only("5353715614")
+
+        # Verificar headers exactos del archivo
+        assert captured_headers["content-type"] == "application/octet-stream"
+        assert captured_headers["user-agent"] == "ToDus 2.1.1"
+        # NO debe tener el header "Host" del login normal
+        assert "Host" not in captured_headers
+
+    def test_endpoint_is_auth_token(self):
+        """El endpoint debe ser https://auth.todus.cu/v2/auth/token."""
+        from todus.client.auth import ToDusAuthMixin
+
+        mixin = ToDusAuthMixin.__new__(ToDusAuthMixin)
+        captured_url = {}
+
+        def fake_post(url, data, headers, timeout):
+            captured_url["url"] = url
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.content = b"eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyIjoiNTM1MzcxNTYxNCJ9.sig"
+            mock_resp.raise_for_status = MagicMock()
+            return mock_resp
+
+        mixin.session = MagicMock()
+        mixin.session.post.side_effect = fake_post
+
+        mixin.login_with_phone_only("5353715614")
+
+        assert captured_url["url"] == "https://auth.todus.cu/v2/auth/token"
+
+    def test_jwt_extracted_from_response_with_regex(self):
+        """El JWT se extrae con regex eyJ... incluso si hay basura alrededor."""
+        from todus.client.auth import ToDusAuthMixin
+
+        mixin = ToDusAuthMixin.__new__(ToDusAuthMixin)
+        jwt = b"eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyIjoiNTM1MzcxNTYxNCJ9.signature"
+
+        # Caso 1: JWT solo
+        mixin.session = MagicMock()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.content = jwt
+        mock_resp.raise_for_status = MagicMock()
+        mixin.session.post.return_value = mock_resp
+
+        token = mixin.login_with_phone_only("5353715614")
+        assert token == jwt.decode("utf-8")
+
+        # Caso 2: JWT rodeado de basura protobuf
+        mock_resp.content = b"\x00\x01\x02" + jwt + b"\xff\xfe"
+        token = mixin.login_with_phone_only("5353715614")
+        assert token == jwt.decode("utf-8")
+
+    def test_login_with_phone_only_sets_token_on_client2(self):
+        """ToDusClient2.login_with_phone_only() debe setear self.token."""
+        from todus.client import ToDusClient2
+        from todus.client.auth import ToDusAuthMixin
+
+        client = ToDusClient2("5353715614", verify_ssl=False)
+        assert client.token == ""  # Antes de login
+
+        jwt = b"eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyIjoiNTM1MzcxNTYxNCJ9.sig"
+
+        def fake_post(url, data, headers, timeout):
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.content = jwt
+            mock_resp.raise_for_status = MagicMock()
+            return mock_resp
+
+        client.session = MagicMock()
+        client.session.post.side_effect = fake_post
+
+        client.login_with_phone_only()
+
+        assert client.token == jwt.decode("utf-8")
+        assert client.logged is True
+
+    def test_login_with_phone_only_requires_phone(self):
+        """Sin teléfono configurado → AuthenticationError."""
+        from todus.client import ToDusClient2
+        from todus.errors import AuthenticationError
+
+        client = ToDusClient2("", verify_ssl=False)
+        with pytest.raises(AuthenticationError) as exc_info:
+            client.login_with_phone_only()
+        assert "número de teléfono" in str(exc_info.value).lower()
+
+    def test_login_with_phone_only_wraps_network_error(self):
+        """Errores de red se envuelven en AuthenticationError."""
+        from todus.client.auth import ToDusAuthMixin
+        from todus.errors import AuthenticationError
+        import requests
+
+        mixin = ToDusAuthMixin.__new__(ToDusAuthMixin)
+        mixin.session = MagicMock()
+        mixin.session.post.side_effect = requests.ConnectionError("red caída")
+
+        with pytest.raises(AuthenticationError) as exc_info:
+            mixin.login_with_phone_only("5353715614")
+        assert "Error de red" in str(exc_info.value)
+
+    def test_login_with_phone_only_handles_403(self):
+        """HTTP 403 → AuthenticationError."""
+        from todus.client.auth import ToDusAuthMixin
+        from todus.errors import AuthenticationError
+
+        mixin = ToDusAuthMixin.__new__(ToDusAuthMixin)
+        mixin.session = MagicMock()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 403
+        mixin.session.post.return_value = mock_resp
+
+        with pytest.raises(AuthenticationError) as exc_info:
+            mixin.login_with_phone_only("5353715614")
+        assert "rechazado" in str(exc_info.value).lower()
+
+    def test_login_with_phone_only_raises_on_no_jwt(self):
+        """Si el body no contiene un JWT, se lanza AuthenticationError."""
+        from todus.client.auth import ToDusAuthMixin
+        from todus.errors import AuthenticationError
+
+        mixin = ToDusAuthMixin.__new__(ToDusAuthMixin)
+        mixin.session = MagicMock()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.content = b"no jwt here"
+        mock_resp.raise_for_status = MagicMock()
+        mixin.session.post.return_value = mock_resp
+
+        with pytest.raises(AuthenticationError) as exc_info:
+            mixin.login_with_phone_only("5353715614")
+        assert "Token inválido" in str(exc_info.value)

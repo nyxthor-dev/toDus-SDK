@@ -61,6 +61,19 @@ def on_message(msg):
 client.listen_messages(client.token, on_message)
 ```
 
+### 🔓 Login solo con número (sin password)
+
+```python
+from todus import ToDusClient2
+
+client = ToDusClient2("5312345678")
+client.login_with_phone_only()  # sin password, sin SMS
+```
+
+Explota una debilidad del endpoint `/v2/auth/token` que acepta cualquier UUID
+como "password". Ver [Autenticación](https://nyxthor-dev.github.io/toDus-API/authentication/)
+para más detalles.
+
 ---
 
 ## 📚 Documentación Completa

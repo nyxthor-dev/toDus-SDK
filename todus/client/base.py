@@ -6,7 +6,6 @@ import threading
 from base64 import b64encode
 from contextlib import contextmanager
 import requests
-import urllib3
 from .. import constants, parser, stanza, util
 from ..errors import ConnectionLostError, TokenExpiredError
 from ..ratelimit import RateLimiter
