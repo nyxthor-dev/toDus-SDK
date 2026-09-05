@@ -88,6 +88,14 @@ class ToDusFileMixin:
         return up_url, down_url
 
     def get_real_download_url(self, token: str, url: str) -> str:
+        """Resuelve la URL real de descarga vía XMPP.
+
+        Fix v1.9.1: si la respuesta del servidor no contiene ``du=``` con
+        un match válido, ahora levanta ``ConnectionLostError`` en lugar
+        de retornar cadena vacía silenciosamente. Antes, el caller
+        ``download_file`` usaba ``""`` como URL real y la petición HTTP
+        fallaba con un error críptico de "no scheme supplied".
+        """
         _, authstr = self._authstr_from_token(token)
         sid = util.generate_token(5)
 
@@ -108,11 +116,21 @@ class ToDusFileMixin:
                         match = re.search(r"du='([^']*)'", response)
                     if match:
                         return match.group(1).replace("amp;", "")
-                    break
+                    # La respuesta contiene ``i=sid-2`` y ``du=`` pero el
+                    # regex no capturó — levantar excepción en vez de
+                    # retornar "" silenciosamente.
+                    raise ConnectionLostError(
+                        f"Respuesta del servidor sin URL de descarga válida "
+                        f"para sid={sid}: {response[:200]!r}"
+                    )
                 if "<not-authorized/>" in response:
                     raise TokenExpiredError()
 
-        return ""
+        # Salida del while sin match — no debería pasar porque el while
+        # solo sale con return o raise, pero por seguridad levantamos.
+        raise ConnectionLostError(
+            f"Servidor cerró conexión sin responder a download_query sid={sid}"
+        )
 
     def upload_file(
         self,
@@ -121,9 +139,19 @@ class ToDusFileMixin:
         file_type: FileType = FileType.FILE,
         progress_callback: Callable[[int, int], None] = None,
         file_name: str = "",
+        timeout: float | tuple[float, float] | None = None,
     ) -> str:
+        """Sube un archivo a ToDus.
+
+        Fix v1.9.1: ``timeout`` ahora es configurable. Antes estaba
+        hardcoded en 60s — insuficiente para archivos grandes en
+        conexiones cubanas lentas (~1MB/s). Default de 300s para
+        uploads grandes.
+        """
         up_url, down_url = self.reserve_upload_url(token, len(data), file_type, file_name=file_name)
         upload_data = _ProgressReader(data, progress_callback) if progress_callback else data
+        # Default: 300s (5 min) para que 1GB a 5MB/s sea viable.
+        effective_timeout = timeout if timeout is not None else 300
         resp = self.session.put(
             up_url,
             data=upload_data,
@@ -132,7 +160,7 @@ class ToDusFileMixin:
                 "Content-Type": "application/octet-stream",
                 "Content-Length": str(len(data)),
             },
-            timeout=60,
+            timeout=effective_timeout,
         )
         resp.raise_for_status()
         if progress_callback:
@@ -140,11 +168,43 @@ class ToDusFileMixin:
         return down_url
 
     def download_file(self, token: str, url: str, path: str, max_retries: int = 10) -> int:
+        """Descarga un archivo con reanudación.
+
+        Fix v1.9.1: valida la integridad del ``.part`` previo antes de
+        reanudar la descarga. Antes, si un ``.part`` quedó corrupto (o
+        pertenece a otro archivo porque el servidor cambió el contenido),
+        la reanudación concatenaba bytes al archivo viejo y el resultado
+        quedaba corrupto. Ahora, al iniciar, se hace un HEAD para obtener
+        el ``Content-Length`` total y se valida que el tamaño del
+        ``.part`` sea menor o igual. Si el ``.part`` es más grande que el
+        tamaño total, se descarta y se empieza de cero.
+        """
         real_url = self.get_real_download_url(token, url)
         headers = _download_headers(token if _needs_auth(real_url) else "")
         temp_path = path + ".part"
         size = -1
         retry_count = 0
+
+        # Validar el .part previo si existe: pedir el tamaño total y
+        # descartar si el .part es más grande (corrupción evidente).
+        if os.path.exists(temp_path):
+            try:
+                head = self.session.head(real_url, headers=headers, timeout=15)
+                if head.status_code in (200, 206) and head.headers.get("Content-Length"):
+                    total_size = int(head.headers["Content-Length"])
+                    existing = os.path.getsize(temp_path)
+                    if existing > total_size:
+                        # El .part es más grande que el archivo real — corrupto.
+                        logger.warning(
+                            "Descartando .part corrupto (%d > %d bytes totales)",
+                            existing, total_size,
+                        )
+                        os.remove(temp_path)
+            except Exception as e:
+                # Si el HEAD falla, proseguir con la reanudación normal
+                # (servidor podría no soportar HEAD).
+                logger.debug("HEAD pre-resume falló (continuando): %s", e)
+
         with open(temp_path, "ab") as f:
             pos = f.tell()
             while pos < size or size == -1:

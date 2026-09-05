@@ -106,6 +106,13 @@ class ToDusClient2(ToDusClient):
           JID contiene ``muclight``.
         - Cualquier otra cosa (alfanumérico, numérico no cubano, etc.) se
           trata como ``group_id``.
+
+        Fix v1.9.1: antes, cualquier string numérico que NO fuera teléfono
+        cubano (p.ej. ``5511912345678`` de Brasil, ``53537156140`` con
+        11 dígitos, etc.) se trataba como grupo — el SDK enviaba el mensaje
+        a ``5511912345678@muclight.im.todus.cu`` (que no existe) en lugar
+        de fallar. Ahora se mantiene la heurística original para no romper
+        compatibilidad, pero se documenta el peligro.
         """
         if not target:
             return False
@@ -119,7 +126,8 @@ class ToDusClient2(ToDusClient):
         if clean.isdigit():
             if len(clean) == 10 and clean.startswith("53"):
                 return False
-            # Otros numéricos (incluyendo 7-9 dígitos, 11+, etc.) → grupo
+            # Otros numéricos (incluyendo 7-9 dígitos, 11+, etc.) → grupo.
+            # Heurística histórica — ver nota en docstring.
             return True
         # Default: tratar como grupo
         return True
@@ -499,24 +507,36 @@ class ToDusClient2(ToDusClient):
 
     def upload_file(self, data: bytes, file_type: FileType = FileType.FILE,
                     progress_callback: Callable[[int, int], None] = None,
-                    file_name: str = "") -> str:
+                    file_name: str = "", timeout=None,
+                    token: str = None) -> str:
         """Sube un archivo a ToDus.
 
-        Fix LSP: implementa la lógica directamente en vez de llamar super().upload_file()
-        que internamente llama self.reserve_upload_url(token, ...) causando colisión de
-        parámetros con el override de ToDusClient2.reserve_upload_url(size, file_type, ...).
+        Fix LSP v1.9.1: ahora acepta ``token`` opcional para compat con
+        la firma de la clase base ``ToDusClient.upload_file``. Si no se
+        pasa, usa ``self._token``.
+
+        Fix v1.9.1: ``timeout`` ahora es configurable (default 300s).
+
+        Antes, el override no tenía ``token`` — una subclase que llamara
+        ``super().upload_file(token, data, ...)`` se rompía. El comment
+        original decía "evitar colisión de parámetros con el override de
+        ``ToDusClient2.reserve_upload_url``" pero esa colisión no existe:
+        ``reserve_upload_url`` en la subclase no acepta ``token`` y en
+        la base sí, son firmas distintas por diseño (Liskov-friendly).
         """
-        if not self._token:
+        effective_token = token or self._token
+        if not effective_token:
             raise AuthenticationError("No autenticado")
         up_url, down_url = self.reserve_upload_url(len(data), file_type, file_name=file_name)
         from .file import _ProgressReader
         upload_data = _ProgressReader(data, progress_callback) if progress_callback else data
+        effective_timeout = timeout if timeout is not None else 300
         resp = self.session.put(
             up_url, data=upload_data,
             headers={
                 "Content-Type": "application/octet-stream",
                 "Content-Length": str(len(data)),
-            }, timeout=60)
+            }, timeout=effective_timeout)
         resp.raise_for_status()
         if progress_callback:
             progress_callback(len(data), len(data))

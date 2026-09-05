@@ -183,6 +183,8 @@ class ToDusMessageMixin:
     def send_call_signal(self, token: str, to_jid: str, call_state: str,
                          call_id: str) -> str:
         """Envía señalización de llamada (extensión tcall:n)."""
+        # Fix v1.9.1: aplicar rate limiter — todos los demás send_* lo usan.
+        self._rate_limiter.wait()
         mid = util.generate_msg_id()
         msg = stanza.tcall_message(to_jid, call_state, call_id, msg_id=mid)
         with self._xmpp_session(token) as sock:
@@ -212,6 +214,10 @@ class ToDusMessageMixin:
         return mid
 
     def send_chat_state(self, token: str, to_jid: str, state: str) -> None:
+        # Fix v1.9.1: aplicar rate limiter para evitar flood cuando el
+        # cliente envía 'composing' por cada keystroke. Antes este método
+        # no tenía rate limit y podía saturar el servidor.
+        self._rate_limiter.wait()
         st = stanza.chat_state(to_jid, state)
         with self._xmpp_session(token) as sock:
             sock.sendall(st.encode())
@@ -286,18 +292,31 @@ class ToDusMessageMixin:
                     time.sleep(backoff)
 
     def _listen_loop(self, sock, callback: Callable[[dict], None], stop_event: threading.Event = None) -> None:
-        stop_event = stop_event or threading.Event()
+        """Loop interno de recepción de stanzas.
+
+        Fix v1.9.1: ``stop_event`` es el event que pasa el caller y SOLO el
+        caller debe setearlo. El keepalive worker usa un event interno
+        ``ka_stop`` para no contaminar el del caller. Antes, el ``finally``
+        hacía ``stop_event.set()`` para parar el keepalive — pero como
+        recibía el mismo event del caller, lo dejaba seteado para siempre
+        y el caller creía que el usuario había pedido parar cuando en
+        realidad fue un fallo de red. Eso provocaba que bots que pasaban
+        su propio ``stop_event`` se apagaran al primer envío de respuesta.
+        """
+        # Event interno solo para el keepalive worker; no se comparte con
+        # el caller, así el finally puede setearlo sin contaminer a nadie.
+        ka_stop = threading.Event()
         ping_id = util.generate_token(5)
         ka = threading.Thread(
             target=self._keepalive_worker,
-            args=(sock, stop_event, ping_id),
+            args=(sock, ka_stop, ping_id),
             daemon=True,
         )
         ka.start()
         self._xml_parser.reset()
 
         try:
-            while not stop_event.is_set():
+            while not (stop_event and stop_event.is_set()):
                 try:
                     response = self._recv_all(sock)
                 except OSError as e:
@@ -322,7 +341,8 @@ class ToDusMessageMixin:
                         logger.exception("Error manejando stanza parseada")
 
         finally:
-            stop_event.set()
+            # Solo detener el keepalive interno; NO tocar stop_event del caller.
+            ka_stop.set()
             self._xml_parser.reset()
 
     def _keepalive_worker(self, sock, stop: threading.Event, ping_id: str) -> None:

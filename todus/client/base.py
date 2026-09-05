@@ -216,19 +216,65 @@ class ToDusClientBase:
         return True
 
     def _handshake(self, sock, token: str) -> None:
+        """Handshake SASL PLAIN + resource bind.
+
+        Fix v1.9.1: protección contra loop infinito. Antes, si el
+        servidor enviaba algo que el state machine no reconocía
+        (cualquier cosa que no case con ``<stream:features>`` / ``<ok/>``
+        / ``<not-authorized/>`` / bind), ``_process_handshake`` retornaba
+        ``True`` y el loop ``while True`` seguía para siempre. Cada
+        iteración consumía hasta 15s de timeout de ``recv_all``. Ahora
+        limitamos el tiempo total del handshake a 30s y detectamos si
+        el state no avanza tras 3 recv consecutivos (sale con
+        ``ConnectionLostError``).
+        """
         phone, authstr = self._authstr_from_token(token)
         sid = util.generate_token(5)
         state = {"phase": "init", "username": phone}
 
-        while True:
+        import time as _time
+        start = _time.time()
+        max_handshake_seconds = 30
+        unrecognized_recv_count = 0
+        max_unrecognized = 3
+
+        while _time.time() - start < max_handshake_seconds:
             response = self._recv_all(sock)
             if response is None:
                 raise ConnectionLostError("Servidor cerro conexion durante handshake")
             if response == "":
+                # Timeout: el estado no avanzó. Si esto pasa muchas veces
+                # seguidas, el servidor está vivo pero no responde
+                # adecuadamente al handshake — abortar.
+                unrecognized_recv_count += 1
+                if unrecognized_recv_count >= max_unrecognized:
+                    raise ConnectionLostError(
+                        f"Handshake atascado (sin progreso tras "
+                        f"{max_unrecognized} timeouts)"
+                    )
                 continue
 
-            if not self._process_handshake(response, sock, authstr, sid, state):
-                return
+            prev_phase = state.get("phase")
+            try:
+                if not self._process_handshake(response, sock, authstr, sid, state):
+                    return  # handshake completo
+            except TokenExpiredError:
+                raise
+            # Si el estado no cambió tras procesar la respuesta, contar
+            # como no reconocido.
+            if state.get("phase") == prev_phase:
+                unrecognized_recv_count += 1
+                if unrecognized_recv_count >= max_unrecognized:
+                    raise ConnectionLostError(
+                        f"Handshake atascado (servidor envía "
+                        f"{max_unrecognized} respuestas no reconocidas)"
+                    )
+            else:
+                unrecognized_recv_count = 0
+
+        raise ConnectionLostError(
+            f"Handshake timeout ({max_handshake_seconds}s)"
+        )
 
     # --- Context Manager XMPP ---
 

@@ -5,6 +5,81 @@ Todos los cambios notables en este proyecto se documentan en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/),
 y este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.9.1] - 2026-09-06
+
+### Fixed
+- **CRÍTICO #1 — `stop_event` contaminado por `_listen_loop` finally**:
+  El bug que apagaba bots que pasaban su propio `stop_event` a
+  `listen_messages`. El `finally` de `_listen_loop` hacía `stop_event.set()`
+  para detener el keepalive worker — pero como recibía el mismo event que
+  el caller, lo dejaba seteado para siempre. Tras cualquier fallo de red,
+  el caller creía que el usuario había pedido parar. Ahora el keepalive
+  usa un event interno separado y el `stop_event` del caller se respeta.
+- **#2 — `IncrementalParser` reemitía stanzas en feeds separados**:
+  El `seen_ids` era local a cada `feed()`, así que el mismo `id` en dos
+  feeds distintas se emitía dos veces. Ahora el set persiste en
+  `self._seen_ids` entre llamadas (con límite de 50000 IDs).
+- **#3 — `IncrementalParser` no descartaba `<stream:stream>` inicial**:
+  El header `<?xml...?><stream:stream...>` se quedaba pegado al buffer
+  indefinidamente (el cleanup solo disparaba si buffer > 20000). Ahora
+  se descarta de forma determinista al inicio de cada `feed()`.
+- **#4 — `IncrementalParser` no parseaba `<m .../>` self-closing**:
+  El patrón exigía `</m>` explícito. Ahora hay un patrón adicional para
+  stanzas self-closing (y un caso límite para `<m ...>` sin `/>` ni `</m>`).
+- **#5 — `parse_todus_message` no respetaba CDATA en `<b>`**:
+  El body quedaba corrupto como `"<![CDATA[hello <world>]]>"` en vez de
+  `"hello <world>"`. Ahora se limpia el CDATA antes de `unescape_xml`.
+- **#6 — `parse_todus_message` no manejaba `<b>` anidados**:
+  El regex non-greedy cortaba en el primer `</b>`, perdiendo el contenido
+  después del anidado. Ahora `_match_balanced_tag` cuenta niveles para
+  emparejar el `</b>` de cierre correcto.
+- **#7 — `RateLimiter.wait()` race condition**:
+  Dos threads podían ambos leer el mismo `sleep_time`, dormir, y ambos
+  hacer `append` sin verificar. El limiter terminaba con más timestamps
+  que `max_ops`. Ahora el cálculo + sleep + append es atómico con
+  `threading.Condition`.
+- **#8 — `send_chat_state` no usaba rate limiter**:
+  Podía saturar el servidor si el cliente envía `composing` por cada
+  keystroke. Ahora usa `self._rate_limiter.wait()` como los demás `send_*`.
+- **#9 — `send_call_signal` no usaba rate limiter**: mismo fix que #8.
+- **#10 — `upload_file` timeout 60s hardcoded**:
+  Insuficiente para archivos grandes (1GB) en conexiones cubanas lentas.
+  Ahora el parámetro `timeout` es configurable (default 300s = 5 min).
+- **#11 — `download_file` no validaba integridad de `.part`**:
+  Si un `.part` previo era corrupto o pertenecía a otro archivo, se
+  concatenaba y el resultado quedaba corrupto. Ahora se hace un HEAD
+  pre-resume para validar tamaño; si el `.part` es más grande que el
+  total, se descarta.
+- **#12 — `_handshake` sin timeout total (loop infinito potencial)**:
+  Si el servidor enviaba algo que el state machine no reconocía, el
+  `while True` seguía para siempre. Ahora limita el tiempo total a
+  30s y aborta si el estado no avanza tras 3 recv consecutivos.
+- **#13 — `get_real_download_url` retornaba `""` silenciosamente**:
+  Si la respuesta tenía `i='sid-2'` y `du=` pero el regex no capturaba,
+  retornaba `""`. El caller usaba `""` como URL y el error HTTP era
+  críptico. Ahora levanta `ConnectionLostError` con un mensaje claro.
+- **#14 — `upload_file` override rompía LSP**:
+  El override en `ToDusClient2` no aceptaba `token`, así que una
+  subclase que llamara `super().upload_file(token, data, ...)` se
+  rompía. Ahora acepta `token` opcional (default `self._token`).
+- **#15 — `_is_group_target` trataba números no-cubanos como grupos**:
+  Heurística histórica documentada pero peligrosa: un número como
+  `5511912345678` (Brasil) se trataba como grupo. Se mantiene la
+  heurística para no romper compatibilidad, pero se documenta el
+  peligro en el docstring.
+
+### Added
+- `tests/test_fixes_v1_9_1.py`: 17 tests nuevos, uno por bug arreglado.
+  Cada test falla en v1.9.0 y pasa en v1.9.1.
+- `_match_balanced_tag(stanza, tag)` en `todus/parser.py`: helper
+  público para emparejar tags XML balanceados con anidamiento.
+
+### Changed
+- `RateLimiter` ahora usa `threading.Condition` internamente (además del
+  lock). La API pública (`wait`, `try_acquire`, `available`, `reset`) no
+  cambia.
+- `IncrementalParser.reset()` ahora también limpia `self._seen_ids`.
+
 ## [1.9.0] - 2026-08-30
 
 ### Added
