@@ -68,9 +68,11 @@ def parse_todus_message(stanza: str) -> dict:
     m_open_match = re.search(r"<m\b[^>]*>", stanza)
     m_tag = m_open_match.group(0) if m_open_match else ""
 
+    # Fix v1.10.2: aceptar tanto ``o=`` (protocolo toDus) como ``to=`` (legacy).
+    to_val = _attr(m_tag, "o") or _attr(m_tag, "to")
     result = {
         "from": _attr(m_tag, "f"),
-        "to": _attr(m_tag, "o"),
+        "to": to_val,
         "id": _attr(m_tag, "i"),
         "type": _attr(m_tag, "t"),
         "original_id": _attr(m_tag, "mi"),
@@ -437,11 +439,12 @@ def parse_todus_message(stanza: str) -> dict:
         if ics_match:
             result["event_ics"] = ics_match.group(1).strip()
 
-    # Estado de chat (XEP-0085 ofuscado de toDus:
-    # csc=composing, csp=paused, csa=active, csi=inactive, csg=gone)
-    if "<csc xmlns='uc1'/>" in stanza:
+    # Estado de chat (XEP-0085 ofuscado de toDus).
+    # Fix v1.10.2: INVERTIDO respecto a v1.8.0. Alineado con ElJoker63:
+    # csp=composing, csc=paused, csa=active, csi=inactive, csg=gone.
+    if "<csp xmlns='uc1'/>" in stanza:
         result["chat_state"] = "composing"
-    elif "<csp xmlns='uc1'/>" in stanza:
+    elif "<csc xmlns='uc1'/>" in stanza:
         result["chat_state"] = "paused"
     elif "<csa xmlns='uc1'/>" in stanza:
         result["chat_state"] = "active"
@@ -450,15 +453,16 @@ def parse_todus_message(stanza: str) -> dict:
     elif "<csg xmlns='uc1'/>" in stanza:
         result["chat_state"] = "gone"
 
-    # Recibos según el protocolo de toDus:
-    # rd = Received (entregado), dd = Displayed (leído)
-    receipt_match = re.search(r"<rd\b[^>]*>", stanza)
-    if receipt_match:
-        receipt_tag = receipt_match.group(0)
+    # Recibos según el protocolo de toDus (v1.10.2, alineado con ElJoker63):
+    # dd = delivery (entregado), rd = read (leído/displayed)
+    # INVERTIDO respecto a v1.8.0 (que decía rd=delivered, dd=read).
+    delivery_match = re.search(r"<dd\b[^>]*>", stanza)
+    if delivery_match:
+        receipt_tag = delivery_match.group(0)
         result["receipt"] = _attr(receipt_tag, "i")
         result["receipt_type"] = "delivered"
     else:
-        read_match = re.search(r"<dd\b[^>]*>", stanza)
+        read_match = re.search(r"<rd\b[^>]*>", stanza)
         if read_match:
             read_tag = read_match.group(0)
             result["receipt"] = _attr(read_tag, "i")
@@ -474,10 +478,13 @@ def parse_todus_message(stanza: str) -> dict:
 
 
 def parse_presence(stanza: str) -> dict:
-    """Parsea stanza <p> de presencia."""
+    """Parsea stanza ``<p>`` (o ``<presence>`` legacy) de presencia."""
+    # Fix v1.10.2: aceptar tanto ``o=`` (protocolo toDus) como ``to=``
+    # (legacy/estándar XMPP) para el atributo de destino.
+    to_val = _attr(stanza, "o") or _attr(stanza, "to")
     result = {
         "from": _attr(stanza, "f"),
-        "to": _attr(stanza, "o"),
+        "to": to_val,
         "id": _attr(stanza, "i"),
         "status": "",
         "show": "",
@@ -502,11 +509,15 @@ def parse_presence(stanza: str) -> dict:
 
 def parse_iq(stanza: str) -> dict:
     """Parsea stanza IQ."""
+    # Fix v1.10.2: aceptar ``o=`` (toDus) o ``to=`` (legacy), ``i=`` o ``id=``, ``t=`` o ``type=``.
+    to_val = _attr(stanza, "o") or _attr(stanza, "to")
+    id_val = _attr(stanza, "i") or _attr(stanza, "id")
+    type_val = _attr(stanza, "t") or _attr(stanza, "type")
     result = {
         "from": _attr(stanza, "f"),
-        "to": _attr(stanza, "o"),
-        "id": _attr(stanza, "i"),
-        "type": _attr(stanza, "t"),
+        "to": to_val,
+        "id": id_val,
+        "type": type_val,
         "error": "",
         "raw": stanza,
     }

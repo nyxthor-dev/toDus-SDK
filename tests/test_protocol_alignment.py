@@ -76,6 +76,14 @@ class TestNewPrivateStanzas:
         assert "mi='msg123'" in xml
         assert "uowner='5354123456@im.todus.cu'" in xml
         assert "<b>mira esto</b>" in xml
+        # Fix v1.10.2: ``i=`` del resend es un ID NUEVO, distinto del ``i=`` del <m>
+        import re
+        m_match = re.search(r"<m [^>]*i='([^']+)'", xml)
+        resend_match = re.search(r"<resend [^>]*i='([^']+)'", xml)
+        assert m_match and resend_match
+        assert m_match.group(1) != resend_match.group(1), (
+            f"i del <m> ({m_match.group(1)}) debe ser distinto del i del <resend> ({resend_match.group(1)})"
+        )
 
     def test_tcall_message(self):
         xml = private.tcall_message("53@im.todus.cu", "ringing", "call-9")
@@ -102,10 +110,12 @@ class TestNewPrivateStanzas:
         assert "btn_row" not in xml
 
     def test_no_reply_extension(self):
-        # no existe reply:n: se usa resend:n
+        # Fix v1.10.2: respuestas usan ``reply:n`` (no ``resend:n``)
         xml = private.message("53@im.todus.cu", "hola", reply_to_id="orig")
-        assert "reply:n" not in xml
-        assert "<resend" in xml
+        assert "<reply xmlns='reply:n'" in xml
+        assert "mi='orig'" in xml
+        # resend se reserva para forward
+        assert "<resend" not in xml or "reply:n" in xml
 
 
 class TestNewGroupStanzas:
@@ -148,9 +158,10 @@ class TestNewGroupStanzas:
         assert "new_occupants='5354123456@im.todus.cu'" in xml
 
     def test_group_message_reply_uses_resend(self):
+        # Fix v1.10.2: respuestas usan ``reply:n`` (no ``resend:n``)
         xml = group.group_message("g1@muclight.im.todus.cu", "hola", reply_to_id="orig")
-        assert "reply:n" not in xml
-        assert "<resend" in xml
+        assert "<reply xmlns='reply:n'" in xml
+        assert "mi='orig'" in xml
 
 
 # --- Parser de extensiones nuevas ---

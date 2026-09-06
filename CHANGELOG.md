@@ -5,6 +5,75 @@ Todos los cambios notables en este proyecto se documentan en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/),
 y este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.10.2] - 2026-09-06
+
+### Fixed — alineación con el protocolo oficial de toDus
+
+Comparando con el fork ``ElJoker63/toDus-API`` (que funciona en producción),
+detectamos 8 categorías de bugs en las stanzas:
+
+- **#21 — Atributo de destino ``to=`` → ``o=``**: el protocolo de toDus
+  abrevia ``to`` como ``o`` en todas las stanzas ``<m>``, ``<iq>`` y
+  ``<p>``. Antes usábamos ``to=`` (estándar XMPP) — la APK no reconocía el
+  destinatario y no procesaba multimedia, status, etc. Solo texto funcionaba
+  porque el servidor era laxo con el atributo.
+- **#22 — Tag presencia ``<presence>`` → ``<p>``**: igual que ``to=``/``o=``,
+  el protocolo abrevia ``presence`` como ``p``. Sin esto, el listener no
+  podía unirse a grupos MUC Light ni enviar presencia inicial.
+- **#23 — IQ attrs ``type=``/``id=`` → ``t=``/``i=``**: abreviación del
+  protocolo. Las IQs de upload_query, download_query, group_create, etc.
+  ahora usan ``t='set' i='mid'``.
+- **#24 — Reply namespace ``resend:n`` → ``reply:n``**: las RESPUESTAS
+  (reply_to_id) usan ``<reply xmlns='reply:n' mi='orig'/>``. El namespace
+  ``resend:n`` se reserva para FORWARD (reenviar de otro chat). Antes
+  usábamos ``resend:n`` para ambos, lo que hacía que la APK confundiera
+  reply con forward.
+- **#25 — Forward con ``i=`` propio**: el ``i=`` del ``<resend>`` en un
+  forward debe ser un ID NUEVO (``rid``), distinto del ``i=`` del ``<m>``
+  exterior (``mid``). Antes usábamos el mismo ``mid``, lo que hacía que
+  la APK lo interpretara como reply. Ahora ``rid = _generate_msg_id()``
+  (diferente de ``mid``).
+- **#26 — Chat states INVERTIDOS**: ``composing = csp`` (no ``csc``),
+  ``paused = csc`` (no ``csp``). Alineado con ElJoker63. Antes estaban
+  al revés. ``active = csa``, ``inactive = csi``, ``gone = csg`` sin
+  cambio. Aplicado en ``chat_state()`` (sender) y ``parse_todus_message``
+  (receiver).
+- **#27 — Receipts INVERTIDOS**: ``dd = delivery`` (entregado),
+  ``rd = read`` (leído/displayed). INVERTIDO respecto a v1.8.0 (que
+  decía ``rd = delivered, dd = read``). Aplicado en ``receipt()`` (delivery),
+  ``read_receipt()`` (read) y ``parse_todus_message`` (receiver).
+- **#28 — Botones sin ``i`` ni ``mi``**: cada ``<button>`` lleva ahora
+  ``i='{btn_id}' mi='{mid}'`` además de ``btn_t``, ``btn_cmd``, ``btn_msg_c``,
+  ``btn_size``, ``btn_d``. Sin estos, la APK no registraba el botón como
+  interactivo (no respondía al tap).
+
+### Parser actualizado para aceptar ambos formatos
+
+``parse_todus_message``, ``parse_presence`` y ``parse_iq`` ahora aceptan
+tanto ``o=`` (toDus) como ``to=`` (legacy XMPP), ``i=`` o ``id=``, ``t=``
+o ``type=``. Esto permite recibir stanzas de servidores/senders que usan
+cualquier formato sin romper.
+
+### Tests
+- ``tests/test_stanzas.py``: 6 tests actualizados para reflejar los nuevos
+  stanzas (``o=``, ``reply:n``, ``csp/csc`` invertidos, ``dd/rd``
+  invertidos).
+- ``tests/test_parser.py``: 4 tests actualizados.
+- ``tests/test_protocol_alignment.py``: 3 tests actualizados para
+  ``reply:n``, ``group_message_reply_uses_resend`` renombrado a
+  ``test_group_message_reply_uses_reply`` semántica.
+- Suite completa: **296 passed, 0 failed**.
+- flake8: 0 violations.
+
+### Validación real
+- Forward confirmado: la APK muestra "Reenviado" + contenido del mensaje
+  original. Funciona correctamente en v1.10.2.
+- Botones confirmados: la APK renderiza los 2 botones clickeables debajo
+  del texto. Tapan y responden.
+- Reply: la APK de toDus puede no mostrar etiqueta visual de "respondiendo
+  a" — a confirmar (la stanza ``<reply xmlns='reply:n'>`` se envía
+  correctamente según ElJoker).
+
 ## [1.10.1] - 2026-09-06
 
 ### Fixed

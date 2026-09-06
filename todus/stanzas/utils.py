@@ -10,8 +10,11 @@ def _generate_msg_id() -> str:
 
 
 def iq(type_: str, iq_id: str, payload: str = "", to: str = "") -> str:
-    """Stanza IQ genérica."""
-    to_attr = f" to='{to}'" if to else ""
+    """Stanza IQ genérica.
+
+    Fix v1.10.2: ``o=`` en vez de ``to=`` (atributo de destino del protocolo toDus).
+    """
+    to_attr = f" o='{to}'" if to else ""
     return f"<iq i='{iq_id}' t='{type_}'{to_attr}>{payload}</iq>"
 
 
@@ -27,51 +30,55 @@ def ping(ping_id: str) -> str:
 
 
 def chat_state(to: str, state: str, msg_id: str = "", msg_type: str = "c") -> str:
-    """Notificación de estado de chat para ToDus (XEP-0085 ofuscado).
+    """Notificación de estado de chat para ToDus.
 
-    El protocolo de toDus define:
-    ``csc`` = composing (escribiendo), ``csp`` = paused (dejó de escribir),
-    ``csa`` = active, ``csi`` = inactive, ``csg`` = gone.
+    Fix v1.10.2: chat states INVERTIDOS respecto a v1.8.0. Alineado con
+    ElJoker63/toDus-API (que funciona en producción):
+    - ``composing`` = ``csp`` (antes csc — invertido)
+    - ``paused`` = ``csc`` (antes csp — invertido)
+    - ``active`` = ``csa``, ``inactive`` = ``csi``, ``gone`` = ``csg`` (sin cambio)
     """
     mid = msg_id or _generate_msg_id()
     tags = {
-        "composing": "csc",
-        "paused": "csp",
+        "composing": "csp",  # invertido (era csc)
+        "paused": "csc",     # invertido (era csp)
         "active": "csa",
         "inactive": "csi",
         "gone": "csg",
     }
-    tag = tags.get(state, "csc")
+    tag = tags.get(state, "csp")
     return (
-        f"<m to='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
+        f"<m o='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
         f"<{tag} xmlns='uc1'/>"
         f"</m>"
     )
 
 
 def receipt(to: str, msg_id: str, receipt_id: str = "", msg_type: str = "c") -> str:
-    """Receipt de *entrega* (received) para ToDus.
+    """Receipt de *entrega* (delivery) para ToDus.
 
-    Protocolo de toDus: ``rd`` = recibido/entregado (received)
-    (mensaje entregado al cliente) y ``dd`` = leído (displayed).
+    Fix v1.10.2: INVERTIDO respecto a v1.8.0. Alineado con ElJoker63:
+    - ``dd`` = delivery (entregado al destinatario)
+    - ``rd`` = read (leído/displayed) — usar ``read_receipt()``
     """
     rid = receipt_id or _generate_msg_id()
     return (
-        f"<m to='{to}' t='{msg_type}' i='{rid}' xmlns='jc'>"
-        f"<rd xmlns='x8' i='{msg_id}'/>"
+        f"<m o='{to}' t='{msg_type}' i='{rid}' xmlns='jc'>"
+        f"<dd xmlns='x8' i='{msg_id}'/>"
         f"</m>"
     )
 
 
 def read_receipt(to: str, msg_id: str, receipt_id: str = "", msg_type: str = "c") -> str:
-    """Receipt de *lectura* (displayed) para ToDus.
+    """Receipt de *lectura* (read/displayed) para ToDus.
 
-    ``dd`` = leído (displayed) en el protocolo oficial.
+    Fix v1.10.2: ``rd`` = leído (read), ``dd`` = entregado (delivery).
+    INVERTIDO respecto a v1.8.0 (que decía dd=displayed).
     """
     rid = receipt_id or _generate_msg_id()
     return (
-        f"<m to='{to}' t='{msg_type}' i='{rid}' xmlns='jc'>"
-        f"<dd xmlns='x8' i='{msg_id}'/>"
+        f"<m o='{to}' t='{msg_type}' i='{rid}' xmlns='jc'>"
+        f"<rd xmlns='x8' i='{msg_id}'/>"
         f"</m>"
     )
 
@@ -79,10 +86,9 @@ def read_receipt(to: str, msg_id: str, receipt_id: str = "", msg_type: str = "c"
 def ack(msg_id: str, to: str = "") -> str:
     """ACK de mensaje (elemento ``ak``).
 
-    Nota: el protocolo oficial no tiene ningún elemento ``tdack``; el elemento
-    correcto para reconocer mensajes (usado en canales) es ``ak``.
+    Fix v1.10.2: ``o=`` en vez de ``to=`` (atributo de destino).
     """
-    to_attr = f" to='{to}'" if to else ""
+    to_attr = f" o='{to}'" if to else ""
     return f"<ak xmlns='x8' i='{msg_id}'{to_attr}/>"
 
 

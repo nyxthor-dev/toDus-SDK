@@ -18,7 +18,8 @@ from todus.stanzas.presence import presence, muc_presence, muc_unavailable
 class TestPrivateMessage:
     def test_basic_message(self):
         xml = message("5354123456@im.todus.cu", "Hola")
-        assert "to='5354123456@im.todus.cu'" in xml
+        # Fix v1.10.2: ``o=`` en vez de ``to=`` (protocolo toDus)
+        assert "o='5354123456@im.todus.cu'" in xml
         assert "<b>Hola</b>" in xml
         assert "<k xmlns='x8'/>" in xml
 
@@ -93,11 +94,11 @@ class TestPrivateMessage:
         assert "ad='false'" in xml
 
     def test_reply_to_in_message(self):
-        # No existe la extensión reply:n; las respuestas usan resend:n
+        # Fix v1.10.2: respuestas usan ``reply:n`` (no ``resend:n``)
         xml = message("53@im.todus.cu", "resp", reply_to_id="original")
-        assert "<resend xmlns='resend:n'" in xml
+        assert "<reply xmlns='reply:n'" in xml
         assert "mi='original'" in xml
-        assert "<reply" not in xml
+        assert "<resend" not in xml
 
     def test_generate_msg_id_is_hex(self):
         mid = _generate_msg_id()
@@ -112,23 +113,24 @@ class TestUtilityStanzas:
         xml = iq("get", "iq1", "<payload/>", "target")
         assert "i='iq1'" in xml
         assert "t='get'" in xml
-        assert "to='target'" in xml
+        # Fix v1.10.2: ``o=`` en vez de ``to=``
+        assert "o='target'" in xml
 
     def test_ping(self):
         xml = ping("p1")
         assert "urn:xmpp:ping" in xml
 
     def test_chat_state_composing(self):
-        # csc = composing (no csp)
+        # Fix v1.10.2: csp = composing (invertido respecto a v1.8.0)
         xml = chat_state("53@im.todus.cu", "composing")
-        assert "<csc" in xml
-        assert "<csp" not in xml
-
-    def test_chat_state_paused(self):
-        # csp = paused (no csc)
-        xml = chat_state("53@im.todus.cu", "paused")
         assert "<csp" in xml
         assert "<csc" not in xml
+
+    def test_chat_state_paused(self):
+        # Fix v1.10.2: csc = paused (invertido respecto a v1.8.0)
+        xml = chat_state("53@im.todus.cu", "paused")
+        assert "<csc" in xml
+        assert "<csp" not in xml
 
     def test_chat_state_extended(self):
         assert "<csa" in chat_state("53@im.todus.cu", "active")
@@ -136,17 +138,17 @@ class TestUtilityStanzas:
         assert "<csg" in chat_state("53@im.todus.cu", "gone")
 
     def test_receipt(self):
-        # rd = recibido/entregado
+        # Fix v1.10.2: dd = delivery (entregado) — invertido respecto a v1.8.0
         xml = receipt("53@im.todus.cu", "msg1")
-        assert "<rd" in xml
+        assert "<dd" in xml
         assert "i='msg1'" in xml
-        assert "<dd" not in xml
+        assert "<rd" not in xml
 
     def test_read_receipt(self):
-        # dd = leído (displayed)
+        # Fix v1.10.2: rd = read (leído/displayed) — invertido respecto a v1.8.0
         xml = read_receipt("53@im.todus.cu", "msg1")
-        assert "<dd" in xml
-        assert "<rd" not in xml
+        assert "<rd" in xml
+        assert "<dd" not in xml
 
     def test_ack(self):
         # elemento ak (ACK); tdack no existe

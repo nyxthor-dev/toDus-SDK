@@ -1,10 +1,18 @@
 """Generadores de stanzas XML para chat privado en ToDus.
 
-Alineado con el protocolo oficial v2.1.2:
-- Las respuestas se implementan con la extensión ``resend`` (no existe
-  ninguna extensión ``reply:n``).
-- Botones: atributos ``btn_t``, ``btn_cmd``, ``btn_msg_c``, ``btn_d``,
-  ``btn_size`` (sin ``btn_color`` ni ``btn_row``).
+Fix v1.10.2 — alineado con el protocolo oficial (comparado con el fork
+ElJoker63/toDus-API que funciona en producción):
+
+- Atributo de destino: ``o=`` (no ``to=``). El protocolo de toDus abrevia
+  ``to`` como ``o`` en todas las stanzas.
+- Reply (responder a): extensión ``reply:n`` (no ``resend:n``). El tag es
+  ``<reply xmlns='reply:n' mi='...'>``. El namespace ``resend:n`` se
+  reserva para forward (reenviar de otro chat).
+- Forward (reenviar): ``<resend xmlns='resend:n' i='{rid}' mi='{orig}' uowner='...'>``
+  donde ``rid`` es un ID NUEVO (diferente del mid del mensaje). Antes usábamos
+  ``i='{mid}'`` (el mismo) — la APK lo interpretaba como reply.
+- Botones: cada ``<button>`` lleva ``i='{btn_id}' mi='{mid}'`` además de
+  ``btn_t``, ``btn_cmd``, ``btn_msg_c``, ``btn_size``.
 """
 
 import hashlib
@@ -17,10 +25,15 @@ def _generate_msg_id() -> str:
 
 
 def _reply_xml(reply_to_id: str) -> str:
-    """Extensión de respuesta apuntando al mensaje original (resend)."""
+    """Extensión de respuesta (reply) apuntando al mensaje original.
+
+    Fix v1.10.2: cambió de ``<resend xmlns='resend:n'>`` a
+    ``<reply xmlns='reply:n'>``. El namespace ``resend:n`` se reserva
+    para forward (reenviar de otro chat).
+    """
     if not reply_to_id:
         return ""
-    return f"<resend xmlns='resend:n' mi='{reply_to_id}'/>"
+    return f"<reply xmlns='reply:n' mi='{reply_to_id}'/>"
 
 
 def message(to: str, body: str, msg_id: str = "", msg_type: str = "c", reply_to_id: str = "") -> str:
@@ -29,7 +42,7 @@ def message(to: str, body: str, msg_id: str = "", msg_type: str = "c", reply_to_
     body_esc = util.escape_xml(body)
     reply = _reply_xml(reply_to_id)
     return (
-        f"<m to='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
+        f"<m o='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
         f"<k xmlns='x8'/>"
         f"{reply}"
         f"<b>{body_esc}</b>"
@@ -43,7 +56,7 @@ def edit_message(to: str, new_body: str, original_msg_id: str, edit_id: str = ""
     body_esc = util.escape_xml(new_body)
     reply = _reply_xml(reply_to_id)
     return (
-        f"<m to='{to}' t='c' i='{original_msg_id}' xmlns='jc'>"
+        f"<m o='{to}' t='c' i='{original_msg_id}' xmlns='jc'>"
         f"<edited xmlns='edited:n' i='{eid}' mi='{original_msg_id}'/>"
         f"<k xmlns='x8'/>"
         f"{reply}"
@@ -61,7 +74,7 @@ def file_message(to: str, url: str, file_type: int, caption: str = "", msg_id: s
     name_esc = util.escape_xml(file_name)
     reply = _reply_xml(reply_to_id)
     return (
-        f"<m to='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
+        f"<m o='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
         f"<k xmlns='x8'/>"
         f"{reply}"
         f"<b>{cap_esc}</b>"
@@ -91,7 +104,7 @@ def image_message(to: str, url: str, file_name: str, file_size: int, width: int 
     reply = _reply_xml(reply_to_id)
 
     return (
-        f"<m to='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
+        f"<m o='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
         f"<k xmlns='x8'/>"
         f"{reply}"
         f"<image xmlns='image:n' i='{fid}' mi='{mid}' url='{url_esc}' n='{name_esc}' s='{file_size}'"
@@ -111,7 +124,7 @@ def image_message_simple(to: str, url: str, file_name: str, file_size: int,
     reply = _reply_xml(reply_to_id)
 
     return (
-        f"<m to='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
+        f"<m o='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
         f"<k xmlns='x8'/>"
         f"{reply}"
         f"<image xmlns='image:n' i='{fid}' mi='{mid}' url='{url_esc}' n='{name_esc}' s='{file_size}' h=''/>"
@@ -144,15 +157,19 @@ def button_message(to: str, text: str, buttons: list[dict], msg_id: str = "", ms
         btn_msg = util.escape_xml(btn.get("data", ""))
         btn_size = btn.get("size", "0.82")
         btn_d = util.escape_xml(btn.get("description", ""))
+        # Fix v1.10.2: cada botón lleva su propio i (id único) y el
+        # mi (message id) del mensaje padre. Sin estos, la APK no
+        # registra el botón como interactivo.
+        btn_id = btn.get("id") or _generate_msg_id()
         desc_attr = f" btn_d='{btn_d}'" if btn_d else ""
 
         buttons_xml += (
-            f"<button xmlns='button:n' btn_t='{btn_text}' btn_cmd='{btn_cmd}' "
-            f"btn_msg_c='{btn_msg}'{desc_attr} btn_size='{btn_size}'/>"
+            f"<button xmlns='button:n' i='{btn_id}' mi='{mid}' btn_t='{btn_text}' "
+            f"btn_cmd='{btn_cmd}' btn_msg_c='{btn_msg}'{desc_attr} btn_size='{btn_size}'/>"
         )
 
     return (
-        f"<m to='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
+        f"<m o='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
         f"<k xmlns='x8'/>"
         f"{reply}"
         f"<b>{text_esc}</b>"
@@ -168,7 +185,7 @@ def contact_message(to: str, contact_id: str, contact_name: str, contact_phone: 
     name_esc = util.escape_xml(contact_name)
     reply = _reply_xml(reply_to_id)
     return (
-        f"<m to='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
+        f"<m o='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
         f"<k xmlns='x8'/>"
         f"{reply}"
         f"<contact xmlns='contact:n' i='{contact_id}' mi='{mid}' n='{name_esc}'"
@@ -186,7 +203,7 @@ def sticker_message(to: str, sticker_id: str, sticker_name: str, sticker_pack: s
     pack_esc = util.escape_xml(sticker_pack)
     reply = _reply_xml(reply_to_id)
     return (
-        f"<m to='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
+        f"<m o='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
         f"<k xmlns='x8'/>"
         f"{reply}"
         f"<sticker xmlns='sticker:n' i='{sticker_id}' mi='{mid}' n='{name_esc}' f='{pack_esc}' url='' s='0'"
@@ -207,7 +224,7 @@ def video_message(to: str, url: str, video_id: str, file_name: str, file_size: i
     reply = _reply_xml(reply_to_id)
 
     return (
-        f"<m to='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
+        f"<m o='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
         f"<k xmlns='x8'/>"
         f"{reply}"
         f"<video xmlns='video:n' i='{video_id}' mi='{mid}' url='{url_esc}' s='{file_size}' h='' d='{duration}'"
@@ -233,7 +250,7 @@ def voice_message(to: str, url: str, file_name: str, file_size: int, duration: i
     reply = _reply_xml(reply_to_id)
 
     return (
-        f"<m to='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
+        f"<m o='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
         f"<k xmlns='x8'/>"
         f"{reply}"
         f"<voice xmlns='voice:n' i='{fid}' mi='{mid}' url='{url_esc}' s='{file_size}' "
@@ -261,7 +278,7 @@ def gif_message(to: str, url: str, file_name: str, file_size: int, width: int = 
         wh_attrs += f" he='{height}'"
 
     return (
-        f"<m to='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
+        f"<m o='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
         f"<k xmlns='x8'/>"
         f"{reply}"
         f"<gif xmlns='gif:n' i='{fid}' mi='{mid}' url='{url_esc}' n='{name_esc}' "
@@ -280,7 +297,7 @@ def stream_video_message(to: str, guid: str, stream_url: str, duration: int = 0,
     """
     mid = msg_id or _generate_msg_id()
     return (
-        f"<m to='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
+        f"<m o='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
         f"<k xmlns='x8'/>"
         f"<streamvideo xmlns='streamvideo:n' gu='{guid}' su='{util.escape_xml(stream_url)}' "
         f"du='{duration}' ec='{util.escape_xml(extra_codec)}'/>"
@@ -298,7 +315,7 @@ def reaction_message(to: str, reacted_msg_id: str, reaction_code: str, reaction_
     """
     rid = reaction_id or _generate_msg_id()
     return (
-        f"<m to='{to}' t='{msg_type}' i='{msg_id or rid}' xmlns='jc'>"
+        f"<m o='{to}' t='{msg_type}' i='{msg_id or rid}' xmlns='jc'>"
         f"<reaction xmlns='reaction:n' i='{rid}' mi='{reacted_msg_id}' "
         f"mir='{reacted_msg_id}' rc='{util.escape_xml(reaction_code)}' ca='{ca}'/>"
         f"</m>"
@@ -309,16 +326,22 @@ def forward_message(to: str, original_msg_id: str, original_owner: str = "",
                     msg_id: str = "", msg_type: str = "c", body: str = "") -> str:
     """Reenvía (forward) un mensaje (extensión ``resend:n``).
 
-    Atributos: ``i`` (id del reenvío), ``mi`` (id del mensaje original),
-    ``uowner`` (JID del dueño original del mensaje).
+    Fix v1.10.2: el ``i=`` del ``<resend>`` es un ID nuevo (``rid``),
+    diferente del ``i=`` del ``<m>`` exterior (``mid``). Antes usábamos
+    el mismo ``mid`` para ambos, lo que hacía que la APK lo interpretara
+    como reply en vez de forward.
+
+    Atributos: ``i`` (id del reenvío, NUEVO), ``mi`` (id del mensaje
+    original), ``uowner`` (JID del dueño original del mensaje).
     """
     mid = msg_id or _generate_msg_id()
+    rid = _generate_msg_id()  # ID nuevo, distinto de mid
     body_tag = f"<b>{util.escape_xml(body)}</b>" if body else "<b/>"
     owner_attr = f" uowner='{original_owner}'" if original_owner else ""
     return (
-        f"<m to='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
+        f"<m o='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
         f"<k xmlns='x8'/>"
-        f"<resend xmlns='resend:n' i='{mid}' mi='{original_msg_id}'{owner_attr}/>"
+        f"<resend xmlns='resend:n' i='{rid}' mi='{original_msg_id}'{owner_attr}/>"
         f"{body_tag}"
         f"</m>"
     )
@@ -333,7 +356,7 @@ def tcall_message(to: str, call_state: str, call_id: str, msg_id: str = "",
     """
     mid = msg_id or _generate_msg_id()
     return (
-        f"<m to='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
+        f"<m o='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
         f"<tcall xmlns='tcall:n' i='{mid}' mi='{mid}' st='{util.escape_xml(call_state)}' cid='{call_id}'/>"
         f"</m>"
     )
@@ -356,7 +379,7 @@ def delete_message(to: str, message_id: str, msg_id: str = "", msg_type: str = "
     body_xml = f"<b>{util.escape_xml(body)}</b>" if body or not media_xml else "<b/>"
     reply = _reply_xml(reply_to_id)
     return (
-        f"<m to='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
+        f"<m o='{to}' t='{msg_type}' i='{mid}' xmlns='jc'>"
         f"<k xmlns='x8'/>"
         f"{reply}"
         f"{media_xml}"
@@ -374,7 +397,7 @@ def location_message(to: str, lat: float, lon: float, zoom: float = 11.0, text: 
     text_esc = util.escape_xml(text)
     reply = _reply_xml(reply_to_id)
     return (
-        f"<m to='{to}' t='c' i='{mid}' xmlns='jc'>"
+        f"<m o='{to}' t='c' i='{mid}' xmlns='jc'>"
         f"<k xmlns='x8'/>"
         f"{reply}"
         f"<location xmlns='location:n' i='{lid}' mi='{mid}' lat='{lat}' lon='{lon}' z='{zoom}' t='{text_esc}'/>"
@@ -393,7 +416,7 @@ def event_message(to: str, event_id: str, title: str, start: int, end: int,
     ics_esc = util.escape_xml(ics_data)
     reply = _reply_xml(reply_to_id)
     return (
-        f"<m to='{to}' t='c' i='{mid}' xmlns='jc'>"
+        f"<m o='{to}' t='c' i='{mid}' xmlns='jc'>"
         f"<k xmlns='x8'/>"
         f"{reply}"
         f"<event xmlns='event:n' i='{eid}' mi='{mid}' ti='{title_esc}' s='{start}' e='{end}' ad='{ad_str}'>"
