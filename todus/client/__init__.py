@@ -493,6 +493,21 @@ class ToDusClient2(ToDusClient):
         to_jid = util.build_jid(to_phone)
         return super().send_read_receipt(self._token, to_jid, msg_id)
 
+    def send_delivery_receipt(self, to_phone: str, msg_id: str) -> str:
+        """Envía confirmación de entrega (received, ``rd``).
+
+        Fix v1.10.1: faltaba el wrapper en ToDusClient2. ``send_read_receipt``
+        sí lo tenía, pero ``send_delivery_receipt`` no — el caller tenía que
+        usar la firma del mixin base ``(token, to_jid, msg_id)`` que no
+        encaja con la API pública de ToDusClient2.
+        """
+        if not self._token:
+            raise AuthenticationError("No autenticado")
+        if self._is_group_target(to_phone):
+            return ""
+        to_jid = util.build_jid(to_phone)
+        return super().send_delivery_receipt(self._token, to_jid, msg_id)
+
     # --- Archivos ---
 
     def reserve_upload_url(self, size: int, file_type: FileType, file_name: str = "") -> tuple[str, str]:
@@ -500,10 +515,40 @@ class ToDusClient2(ToDusClient):
             raise AuthenticationError("No autenticado")
         return super().reserve_upload_url(self._token, size, file_type, file_name=file_name)
 
-    def get_real_download_url(self, url: str) -> str:
-        if not self._token:
+    def get_real_download_url(self, *args, **kwargs) -> str:
+        """Resuelve la URL real de descarga.
+
+        Firma dual (Fix LSP v1.10.1):
+
+        - ``get_real_download_url(url)`` — uso recomendado en ToDusClient2.
+          Usa ``self._token`` internamente.
+        - ``get_real_download_url(token, url)`` — uso interno de la base
+          ``ToDusFileMixin.download_file`` y ``download_file_to_folder``
+          (que llaman ``self.get_real_download_url(token, url)``).
+
+        Antes, el override solo aceptaba ``(url)`` — TypeError cuando
+        la base llamaba con ``(token, url)``. Ahora detecta la firma por
+        número de args.
+
+        También acepta kwargs: ``get_real_download_url(url=..., token=...)``.
+        """
+        if len(args) == 1:
+            # (url) — estilo ToDusClient2
+            url = args[0]
+            effective_token = kwargs.get('token') or self._token
+        elif len(args) == 2:
+            # (token, url) — estilo base
+            effective_token = args[0]
+            url = args[1]
+        else:
+            # Solo kwargs
+            effective_token = kwargs.get('token') or self._token
+            url = kwargs.get('url')
+        if not effective_token:
             raise AuthenticationError("No autenticado")
-        return super().get_real_download_url(self._token, url)
+        if not url:
+            raise ValueError("url es requerido")
+        return super().get_real_download_url(effective_token, url)
 
     def upload_file(self, data: bytes, file_type: FileType = FileType.FILE,
                     progress_callback: Callable[[int, int], None] = None,
@@ -542,15 +587,31 @@ class ToDusClient2(ToDusClient):
             progress_callback(len(data), len(data))
         return down_url
 
-    def download_file(self, url: str, path: str) -> int:
-        if not self._token:
-            raise AuthenticationError("No autenticado")
-        return super().download_file(self._token, url, path)
+    def download_file(self, url: str, path: str, token: str = None) -> int:
+        """Descarga un archivo a ``path``.
 
-    def download_file_to_folder(self, url: str, folder: str, filename: str = "") -> tuple[int, str]:
-        if not self._token:
+        Fix LSP v1.10.1: ``token`` opcional para compat con la base.
+        """
+        effective_token = token or self._token
+        if not effective_token:
             raise AuthenticationError("No autenticado")
-        return super().download_file_to_folder(self._token, url, folder, filename)
+        return super().download_file(effective_token, url, path)
+
+    def download_file_to_folder(
+        self, url: str, folder: str, filename: str = "",
+        token: str = None,
+    ) -> tuple[int, str]:
+        """Descarga un archivo a una carpeta.
+
+        Fix LSP v1.10.1: ``token`` opcional. Internamente la base llama
+        ``self.get_real_download_url(token, url)`` — eso ahora funciona
+        porque el override de ``get_real_download_url`` también acepta
+        ``token`` opcional.
+        """
+        effective_token = token or self._token
+        if not effective_token:
+            raise AuthenticationError("No autenticado")
+        return super().download_file_to_folder(effective_token, url, folder, filename)
 
     # --- Perfil ---
 

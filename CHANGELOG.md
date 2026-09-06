@@ -5,6 +5,45 @@ Todos los cambios notables en este proyecto se documentan en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/),
 y este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.10.1] - 2026-09-06
+
+### Fixed
+- **#16 — Falta wrapper `ToDusClient2.send_delivery_receipt(to_phone, msg_id)`**:
+  ``send_read_receipt`` tenía wrapper, pero ``send_delivery_receipt`` no.
+  El caller tenía que usar la firma del mixin base ``(token, to_jid, msg_id)``
+  que no encaja con la API pública de ToDusClient2. Ahora existe el wrapper
+  con la misma firma que ``send_read_receipt``.
+- **#17 — LSP violation en `ToDusClient2.get_real_download_url`**:
+  El override solo aceptaba ``(url)``. La base (``ToDusFileMixin.download_file``
+  y ``download_file_to_folder``) llama internamente
+  ``self.get_real_download_url(token, url)`` — TypeError en runtime.
+  Ahora el override usa ``*args, **kwargs`` y detecta la firma por número
+  de args: 1 arg = ``(url)`` estilo ToDusClient2; 2 args = ``(token, url)``
+  estilo base. También acepta kwargs ``get_real_download_url(url=..., token=...)``.
+- **#17b — LSP violation en `download_file` y `download_file_to_folder`**:
+  Mismo patrón que #17. Ahora ambos overrides aceptan ``token`` opcional
+  como último arg, para compat con callers que los invoquen como la base.
+- **#19 — `download_file_to_folder` enviaba Authorization a URLs S3 firmadas**:
+  ``_needs_auth`` se calculaba sobre la URL corta (sin firma), pero el
+  header Authorization se aplicaba a la URL real (firmada con
+  ``X-Amz-Signature``). S3 respondía HTTP 400 ``InvalidRequest`` porque
+  el header Authorization choca con la firma de la query string. Ahora
+  ``_needs_auth`` se evalúa sobre la URL real, y además detecta URLs
+  firmadas S3 (``X-Amz-Signature=`` o ``X-Amz-Algorithm=`` en la query)
+  y retorna False.
+- **#20 — `ConnectionLostError()` vacío en `reserve_upload_url` y
+  `get_real_download_url`**: Cuando el servidor cerraba la conexión durante
+  el recv, se levantaba ``ConnectionLostError()`` sin mensaje — imposible
+  de debugear. Ahora incluye el sid y el contexto (file_type o url).
+
+### Added
+- **Tests**: ``tests/test_fixes_v1_10_1.py`` con 8 tests para los 4 bugs
+  arreglados (LSP, wrapper, _needs_auth, ConnectionLostError vacío).
+
+### Changed
+- ``_needs_auth`` ahora también retorna False para URLs con query string
+  firmada S3 (``X-Amz-Signature`` o ``X-Amz-Algorithm``).
+
 ## [1.10.0] - 2026-09-06
 
 ### Added

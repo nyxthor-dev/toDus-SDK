@@ -11,6 +11,10 @@ logger = logging.getLogger("todus")
 
 # URLs que se descargan SIN cabecera Authorization
 NO_AUTH_URL_MARKERS = ("/official/", "/catalog/", "/status/", "/stream/")
+# Marcadores en la query string que indican URL firmada (S3 pre-signed):
+# si la URL real los contiene, NO debe enviarse Authorization (choca con la
+# firma y S3 responde HTTP 400 InvalidRequest).
+S3_SIGNED_MARKERS = ("X-Amz-Signature=", "X-Amz-Algorithm=",)
 
 
 def _download_headers(token: str) -> dict:
@@ -26,7 +30,19 @@ def _download_headers(token: str) -> dict:
 
 
 def _needs_auth(url: str) -> bool:
-    return not any(marker in url for marker in NO_AUTH_URL_MARKERS)
+    """Determina si la URL requiere el header ``Authorization``.
+
+    Fix v1.10.1: además de los marcadores ``/official/``, ``/catalog/``,
+    ``/status/``, ``/stream/``, ahora también detecta URLs firmadas S3
+    (``X-Amz-Signature`` o ``X-Amz-Algorithm`` en la query string) y
+    retorna False — la firma va en la query y no debe duplicarse con
+    header Authorization.
+    """
+    if any(marker in url for marker in NO_AUTH_URL_MARKERS):
+        return False
+    if any(marker in url for marker in S3_SIGNED_MARKERS):
+        return False
+    return True
 
 
 class _ProgressReader:
@@ -72,7 +88,11 @@ class ToDusFileMixin:
             while True:
                 response = self._recv_all(sock)
                 if response is None:
-                    raise ConnectionLostError()
+                    # Fix v1.10.1: mensaje descriptivo para debug.
+                    raise ConnectionLostError(
+                        "Servidor cerró conexión durante reserve_upload_url "
+                        f"(sid={sid}, file_type={file_type})"
+                    )
                 if response == "":
                     continue
                 if "i='" + sid + "-3'" in response and "put='" in response:
@@ -104,7 +124,11 @@ class ToDusFileMixin:
             while True:
                 response = self._recv_all(sock)
                 if response is None:
-                    raise ConnectionLostError()
+                    # Fix v1.10.1: mensaje descriptivo para debug.
+                    raise ConnectionLostError(
+                        "Servidor cerró conexión durante get_real_download_url "
+                        f"(sid={sid}, url={url[:60]})"
+                    )
                 if response == "":
                     continue
                 if "i='" + sid + "-2'" in response and "du='" in response:
@@ -237,8 +261,15 @@ class ToDusFileMixin:
         return size
 
     def download_file_to_folder(self, token: str, url: str, folder: str, filename: str = "") -> tuple[int, str]:
-        headers = _download_headers(token if _needs_auth(url) else "")
+        """Descarga un archivo a una carpeta.
 
+        Fix v1.10.1: ``_needs_auth`` se calcula sobre la URL REAL (firmada
+        con ``X-Amz-Signature``), no sobre la URL corta. Antes se calculaba
+        sobre la URL corta, lo que hacía que se enviara siempre el header
+        ``Authorization: Bearer <token>`` incluso para URLs S3 firmadas
+        — S3 respondía HTTP 400 ``InvalidRequest`` porque el header
+        Authorization chocaba con la firma de la query string.
+        """
         os.makedirs(folder, exist_ok=True)
 
         if not filename:
@@ -252,6 +283,11 @@ class ToDusFileMixin:
         real_url = self.get_real_download_url(token, url)
         if not real_url:
             raise UploadError("No se pudo obtener URL de descarga")
+
+        # IMPORTANTE: _needs_auth se evalúa sobre la URL REAL, no la corta.
+        # Si la URL real tiene ``X-Amz-Signature`` (firma S3 pre-signed), no
+        # debe llevar el header ``Authorization`` — choca y S3 responde 400.
+        headers = _download_headers(token if _needs_auth(real_url) else "")
 
         size = -1
         downloaded = 0
