@@ -5,6 +5,60 @@ Todos los cambios notables en este proyecto se documentan en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/),
 y este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.10.0] - 2026-09-06
+
+### Added
+- **Sesión XMPP persistente compartida con el listener** — el cambio
+  arquitectural que faltaba. Antes, cada ``send_*`` abría su propia
+  sesión XMPP vía ``with self._xmpp_session(token) as sock:``. El
+  servidor de toDus solo permite 1 sesión activa por JID, así que cada
+  send mataba la sesión del listener y lo forzaba a reconectar.
+  Síntoma: el bot se pasaba la vida reconectando ("Reconectando en
+  Xs (intento N) / 10") cada vez que respondía un comando.
+
+  Ahora ``_listen_loop`` registra su socket como "compartido" vía
+  ``_set_shared_sock(sock)``. ``_xmpp_session`` verifica primero si hay
+  un shared sock activo; si sí, lo reusa sin handshake ni sesión nueva.
+  Si no (listener apagado), cae al comportamiento legacy.
+
+  Esto beneficia a **todos** los métodos que usan ``_xmpp_session``:
+  ``send_message``, ``send_image_message``, ``send_video_message``,
+  ``send_file_message``, ``send_chat_state``, ``send_call_signal``,
+  ``reserve_upload_url``, ``get_real_download_url``,
+  ``send_read_receipt``, ``send_delivery_receipt``, todos los métodos
+  de grupo, ``get_message_history``, ``set_todus_id``, ``send_stanza``.
+
+  Detalles de la implementación:
+
+  - ``_shared_sock``: ``ThreadSafeSocket | None`` — referencia al
+    socket del listener.
+  - ``_shared_sock_lock``: ``threading.Lock`` — protege el acceso.
+  - ``_shared_sock_active``: ``threading.Event`` — flag rápido sin
+    lock para el check inicial.
+  - ``_set_shared_sock(sock|None)``: API que el listener llama al
+    arrancar y terminar.
+  - ``_xmpp_session``: si el shared está activo, hace yield sin
+    handshake ni close (el socket es del listener). Si ``sendall``
+    falla con ``OSError``, limpia el shared **solo si sigue siendo el
+    mismo socket** (el listener pudo reconectar ya con uno nuevo) y
+    relanza la excepción al caller.
+
+- **Tests**: ``tests/test_shared_session_v1_10_0.py`` con 11 tests que
+  cubren registro/liberación, reuse, fallback, race conditions,
+  listener integration, paralelismo y dedup.
+
+### Fixed
+- **Listener ya no reconecta en cada send**: el síntoma del log del
+  bot ("Reconectando en Xs (intento N) / 10" tras cada comando) queda
+  eliminado cuando el listener está activo. Los ``send_*`` reusan su
+  socket sin matarlo.
+
+### Changed
+- ``_xmpp_session`` ahora reusa el socket del listener por defecto;
+  el comportamiento legacy (abrir sesión nueva) es el fallback.
+- ``_listen_loop`` registra su socket al arrancar y lo libera al
+  terminar (en el ``finally``, junto con ``ka_stop.set()``).
+
 ## [1.9.1] - 2026-09-06
 
 ### Fixed

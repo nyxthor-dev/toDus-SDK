@@ -302,6 +302,11 @@ class ToDusMessageMixin:
         y el caller creía que el usuario había pedido parar cuando en
         realidad fue un fallo de red. Eso provocaba que bots que pasaban
         su propio ``stop_event`` se apagaran al primer envío de respuesta.
+
+        Fix v1.10.0: registrar ``sock`` como sesión compartida vía
+        ``_set_shared_sock`` para que los ``send_*`` que lleguen mientras
+        escuchamos lo reusen en lugar de abrir sesiones nuevas (que
+        matarían la nuestra — el servidor solo permite 1 sesión por JID).
         """
         # Event interno solo para el keepalive worker; no se comparte con
         # el caller, así el finally puede setearlo sin contaminer a nadie.
@@ -314,6 +319,10 @@ class ToDusMessageMixin:
         )
         ka.start()
         self._xml_parser.reset()
+
+        # Registrar nuestro socket como compartido: los send_* que lleguen
+        # mientras escuchamos lo reusarán en lugar de abrir sesión nueva.
+        self._set_shared_sock(sock)
 
         try:
             while not (stop_event and stop_event.is_set()):
@@ -341,6 +350,9 @@ class ToDusMessageMixin:
                         logger.exception("Error manejando stanza parseada")
 
         finally:
+            # Liberar el socket compartido — los sends volverán a abrir
+            # sesiones nuevas (comportamiento legacy).
+            self._set_shared_sock(None)
             # Solo detener el keepalive interno; NO tocar stop_event del caller.
             ka_stop.set()
             self._xml_parser.reset()

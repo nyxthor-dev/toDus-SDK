@@ -93,6 +93,15 @@ class ToDusClientBase:
         self._xml_parser = parser.IncrementalParser()
         self._rate_limiter = RateLimiter(max_ops=30, window_seconds=60)
 
+        # Sesión XMPP compartida con el listener.
+        # Cuando listen_messages está activo, registra aquí su socket para
+        # que los send_* lo reusen en lugar de abrir sesiones nuevas
+        # (que matarían la del listener — el servidor solo permite 1 JID).
+        # Ver _xmpp_session() y _set_shared_sock() para el protocolo.
+        self._shared_sock: ThreadSafeSocket | None = None
+        self._shared_sock_lock = threading.Lock()
+        self._shared_sock_active = threading.Event()
+
     def _parse_proxy(self, proxy_url: str):
         from urllib.parse import urlparse
         import socks
@@ -276,10 +285,71 @@ class ToDusClientBase:
             f"Handshake timeout ({max_handshake_seconds}s)"
         )
 
-    # --- Context Manager XMPP ---
+    # --- Sesión XMPP compartida (v1.10.0) ---
+
+    def _set_shared_sock(self, sock: "ThreadSafeSocket | None") -> None:
+        """Registra o libera el socket del listener como sesión compartida.
+
+        Llamado por ``_listen_loop`` cuando empieza (sock != None) y cuando
+        termina (sock = None). Los ``send_*`` que lleguen mientras el
+        listener esté activo reusarán este socket en lugar de abrir una
+        sesión nueva — evita que el servidor mate la sesión del listener
+        cada vez que el bot envía una respuesta.
+        """
+        with self._shared_sock_lock:
+            self._shared_sock = sock
+            if sock is not None:
+                self._shared_sock_active.set()
+            else:
+                self._shared_sock_active.clear()
 
     @contextmanager
     def _xmpp_session(self, token: str):
+        """Context manager que provee un socket XMPP para enviar.
+
+        Estrategia (v1.10.0):
+
+        1. Si el listener tiene un socket compartido activo, lo reusa
+           (sin handshake, sin abrir nueva sesión). Esto evita que el
+           servidor mate la sesión del listener cuando un ``send_*`` se
+           ejecuta mientras se está escuchando.
+        2. Si no hay socket compartido (listener apagado o no arrancado),
+           cae al comportamiento legacy: abre una nueva sesión XMPP,
+           handshake + presence, usa, cierra.
+
+        Race conditions manejadas:
+
+        - Si el socket compartido muere entre el check y el ``yield``,
+          el ``sendall`` falla con ``OSError``; el caller recibe la
+          excepción y se limpia el shared socket (solo si sigue siendo
+          el mismo — el listener pudo ya haber reconectado con uno nuevo).
+        - Si el listener está en handshake (socket todavía no
+          registrado), los sends caen al fallback — la sesión nueva
+          puede competir con el handshake del listener; el perdedor
+          reconecta. Ventana pequeña, consecuencias menores.
+        """
+        # Intentar usar el socket compartido del listener.
+        if self._shared_sock_active.is_set():
+            with self._shared_sock_lock:
+                sock = self._shared_sock  # capturar referencia local
+            if sock is not None:
+                try:
+                    yield sock
+                    # Si llegamos aquí, el sendall funcionó. No cerrar el
+                    # socket — es del listener.
+                    return
+                except (OSError, ConnectionLostError):
+                    # El socket murió durante el send. Limpiarlo solo si
+                    # sigue siendo el mismo (el listener pudo reconectar
+                    # ya con uno nuevo).
+                    with self._shared_sock_lock:
+                        if self._shared_sock is sock:
+                            self._shared_sock = None
+                            self._shared_sock_active.clear()
+                    # Relanzar para que el caller decida si reintenta.
+                    raise
+
+        # Fallback: abrir sesión nueva (comportamiento legacy).
         sock = self._connect_xmpp()
         try:
             self._handshake(sock, token)
